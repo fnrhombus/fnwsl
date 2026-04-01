@@ -19,7 +19,7 @@ else
   alias ll="ls --color=auto -laF"
 fi
 
-# --- Git (supplements omz git plugin) ---
+# --- Git ---
 alias gs="git status"
 
 # --- Utilities ---
@@ -31,5 +31,3 @@ alias myip="curl -s icanhazip.com"
 # (windows cmd equivalent: md %1 & cd %1)
 mc() { mkdir -p "$1" && cd "$1"; }
 
-# --- Quick calculator ---
-calc() { echo "$@" | bc -l; }

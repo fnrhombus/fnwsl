@@ -1,13 +1,17 @@
 # fnwsl
 
-My WSL2 dotfiles. Lean zsh setup with 8 plugins instead of 38.
+My WSL2 dotfiles. Lean zsh setup, cherry-picked one feature at a time.
 
 ## What's included
 
 - **zsh** with zgenom plugin manager
 - **Powerlevel10k** prompt (with instant prompt)
 - **Syntax highlighting**, autosuggestions, history substring search
-- **fzf** for Ctrl-R history search
+- **fzf** for Ctrl-R history search, Ctrl-T file finder, Alt-C directory jump
+- **mise** for tool version management (node, python, etc.)
+- **zoxide** smart cd — learns your frequent directories
+- **tmux** for persistent sessions and worktrees
+- **Modern CLI tools**: bat, fd, ripgrep, eza, lsd, sd, tldr
 - **SSH** key management via keychain (one passphrase per reboot)
 - **Git** config with SSH commit signing
 - **Claude Code** install + Windows settings symlink
@@ -33,8 +37,12 @@ fnwsl/
     .zshrc.d/         # drop-in overrides (stowed to ~)
   git/
     .gitconfig        # git config (stowed to ~)
+  tmux/
+    .tmux.conf        # tmux config (stowed to ~)
   ssh/
     config            # ssh config (symlinked to ~/.ssh/config)
+  CHEATSHEET.md       # commands, shortcuts, and tips
+  FEATURES.md         # every feature reviewed with rationale
 ```
 
 ## Plugins
@@ -49,7 +57,10 @@ fnwsl/
 | powerlevel10k | Prompt theme with instant prompt |
 | omz/sudo | Esc-Esc to prepend sudo |
 | omz/colored-man-pages | Colorized man pages |
-| omz/git | Git aliases (gst, gco, gcmsg, etc.) |
+| omz/extract | One command to extract any archive |
+| omz/command-not-found | Suggests apt package for unknown commands |
+| omz/docker | Docker tab completions |
+| omz/docker-compose | Docker Compose tab completions |
 
 ## Local overrides
 
