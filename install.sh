@@ -3,25 +3,33 @@ set -e
 
 echo "=== fnwsl setup ==="
 
-# --- System packages ---
+# --- System packages (retry once on hash mismatch) ---
+install_packages() {
+  sudo apt-get install -y \
+    zsh \
+    keychain \
+    fzf \
+    stow \
+    bat \
+    fd-find \
+    lsd \
+    ripgrep \
+    eza \
+    tmux \
+    tldr \
+    git \
+    jq \
+    btop \
+    curl \
+    wget
+}
 sudo apt-get update
-sudo apt-get install -y \
-  zsh \
-  keychain \
-  fzf \
-  stow \
-  bat \
-  fd-find \
-  lsd \
-  ripgrep \
-  eza \
-  tmux \
-  tldr \
-  git \
-  jq \
-  btop \
-  curl \
-  wget
+install_packages || {
+  echo "Package install failed, retrying after clean update..."
+  sudo apt-get clean
+  sudo apt-get update
+  install_packages
+}
 
 # --- Set zsh as default shell ---
 if [[ "$SHELL" != */zsh ]]; then
@@ -122,9 +130,9 @@ for f in ~/.zshrc ~/.zsh_aliases ~/.gitconfig ~/.tmux.conf; do
   fi
 done
 
-stow --target="$HOME" zsh
-stow --target="$HOME" git
-stow --target="$HOME" tmux
+stow --restow --target="$HOME" zsh
+stow --restow --target="$HOME" git
+stow --restow --target="$HOME" tmux
 
 # SSH config needs special handling (into ~/.ssh/)
 mkdir -p ~/.ssh

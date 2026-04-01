@@ -6,8 +6,14 @@ if ! command -v git &>/dev/null; then
   sudo apt-get update && sudo apt-get install -y git
 fi
 
-# Clone and run
-git clone https://github.com/fnrhombus/fnwsl ~/fnwsl
+# Clone or pull latest
+if [[ -d ~/fnwsl ]]; then
+  echo "~/fnwsl already exists, pulling latest..."
+  git -C ~/fnwsl pull
+else
+  git clone https://github.com/fnrhombus/fnwsl ~/fnwsl
+fi
+
 cd ~/fnwsl
 chmod +x install.sh
 ./install.sh
