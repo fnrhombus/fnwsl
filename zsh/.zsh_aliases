@@ -1,0 +1,35 @@
+# --- Navigation ---
+alias ..="cd .."
+alias ...="cd ../.."
+alias ....="cd ../../.."
+
+# --- ls (eza > exa > lsd > ls) ---
+if command -v eza &>/dev/null; then
+  alias ls="eza -F --icons"
+  alias la="eza -aF --icons"
+  alias ll="eza -laF --icons --git"
+  alias tree="eza --tree --icons"
+elif command -v lsd &>/dev/null; then
+  alias ls="lsd -F"
+  alias la="lsd -aF"
+  alias ll="lsd -laF"
+else
+  alias ls="ls --color=auto -F"
+  alias la="ls --color=auto -aF"
+  alias ll="ls --color=auto -laF"
+fi
+
+# --- Git (supplements omz git plugin) ---
+alias gs="git status"
+
+# --- Utilities ---
+alias grep="grep --color=auto"
+alias wget="wget -c"
+alias myip="curl -s icanhazip.com"
+
+# --- mc - make directory and cd into it ---
+# (windows cmd equivalent: md %1 & cd %1)
+mc() { mkdir -p "$1" && cd "$1"; }
+
+# --- Quick calculator ---
+calc() { echo "$@" | bc -l; }

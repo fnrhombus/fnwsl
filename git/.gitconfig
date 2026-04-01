@@ -1,0 +1,36 @@
+[user]
+    name = rhombus
+    email = 2511516+fnrhombus@users.noreply.github.com
+    signingkey = ~/.ssh/id_ed25519.pub
+
+[init]
+    defaultBranch = main
+
+[color]
+    ui = auto
+
+[diff]
+    colorMoved = true
+    tool = vscode
+
+[merge]
+    tool = vscode
+
+[mergetool "vscode"]
+    cmd = code --new-window --wait --merge $REMOTE $LOCAL $BASE $MERGED
+    trustExitCode = true
+
+[difftool "vscode"]
+    cmd = code --new-window --wait --diff $LOCAL $REMOTE
+
+[core]
+    editor = code --new-window --wait
+
+[gpg]
+    format = ssh
+
+[gpg "ssh"]
+    allowedSignersFile = ~/.ssh/allowed_signers
+
+[commit]
+    gpgsign = true
