@@ -46,7 +46,7 @@ Cherry-picked from zsh-quickstart-kit and other sources. Each feature was indivi
 | omz/python | **OUT** | Python aliases (pyfind, pyclean). Skipped — marginal value. |
 | omz/pip | **OUT** | Pip tab completion. Skipped — uv/pipx preferred nowadays. |
 | omz/node | **OUT** | Node helpers. Skipped — using mise instead. |
-| omz/npm | **OUT** | npm tab completion. Skipped — using mise instead. |
+| omz/npm | **IN** | npm tab completion. Added back — mise manages versions, this provides completions. |
 | zsh-nvm | **OUT** | Lazy-loads nvm. Skipped — using mise instead. |
 | zsh-pyenv | **OUT** | Lazy-loads pyenv. Skipped — using mise instead. |
 
