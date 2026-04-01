@@ -67,6 +67,9 @@ zstyle ':completion:*' cache-path ~/.zsh/cache
 zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'  # case-insensitive
 
+# --- Ensure ~/.local/bin is on PATH (mise, zoxide install here) ---
+export PATH="$HOME/.local/bin:$PATH"
+
 # --- Deduplicate PATH ---
 typeset -aU path
 
