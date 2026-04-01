@@ -17,4 +17,4 @@ fi
 # Run install.sh with a proper tty (curl pipes break interactive prompts)
 cd ~/fnwsl
 chmod +x install.sh
-bash -c './install.sh < /dev/tty'
+bash -c "./install.sh $* < /dev/tty"
