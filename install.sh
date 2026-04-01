@@ -5,6 +5,11 @@ SSH_PASSPHRASE="${1:-}"
 
 echo "=== fnwsl setup ==="
 
+# --- Fix WSL2 MTU (prevents TLS/SSL failures on large downloads) ---
+if ip link show eth0 &>/dev/null; then
+  sudo ip link set dev eth0 mtu 1350
+fi
+
 # --- System packages (retry once on hash mismatch) ---
 install_packages() {
   sudo apt-get install -y \
@@ -123,6 +128,7 @@ hostname=${WSL_HOSTNAME}
 
 [boot]
 systemd=true
+command=/sbin/ip link set dev eth0 mtu 1350
 EOF
 fi
 
