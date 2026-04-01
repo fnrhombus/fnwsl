@@ -9,6 +9,7 @@ fi
 # Clone or pull latest
 if [[ -d ~/fnwsl ]]; then
   echo "~/fnwsl already exists, pulling latest..."
+  git -C ~/fnwsl reset --hard
   git -C ~/fnwsl pull
 else
   git clone https://github.com/fnrhombus/fnwsl ~/fnwsl
