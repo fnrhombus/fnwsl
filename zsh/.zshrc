@@ -19,6 +19,8 @@ if ! zgenom saved; then
   zgenom ohmyzsh plugins/docker           # docker tab completions
   zgenom ohmyzsh plugins/docker-compose   # docker-compose tab completions
   zgenom ohmyzsh plugins/npm              # npm tab completions
+  zgenom ohmyzsh plugins/pip              # pip tab completions
+  zgenom ohmyzsh plugins/dotnet           # dotnet tab completions
   zgenom load zdharma-continuum/fast-syntax-highlighting  # syntax errors as you type
   zgenom load zsh-users/zsh-autosuggestions               # fish-like inline suggestions
   zgenom load zsh-users/zsh-history-substring-search      # up/down searches by substring

@@ -44,9 +44,11 @@ Cherry-picked from zsh-quickstart-kit and other sources. Each feature was indivi
 | omz/kubectl | **OUT** | Kubernetes tab completion. Skipped — not doing k8s. |
 | omz/terraform | **OUT** | Terraform tab completion. Skipped. |
 | omz/python | **OUT** | Python aliases (pyfind, pyclean). Skipped — marginal value. |
-| omz/pip | **OUT** | Pip tab completion. Skipped — uv/pipx preferred nowadays. |
+| omz/pip | **IN** | Pip tab completion. Added back — mise manages versions, this provides completions. |
 | omz/node | **OUT** | Node helpers. Skipped — using mise instead. |
 | omz/npm | **IN** | npm tab completion. Added back — mise manages versions, this provides completions. |
+| omz/pip | **IN** | pip tab completion. Added back — same reasoning as npm. |
+| omz/dotnet | **IN** | dotnet CLI tab completion. User does C# backend. |
 | zsh-nvm | **OUT** | Lazy-loads nvm. Skipped — using mise instead. |
 | zsh-pyenv | **OUT** | Lazy-loads pyenv. Skipped — using mise instead. |
 
