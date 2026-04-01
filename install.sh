@@ -33,7 +33,7 @@ install_packages || {
 
 # --- Set zsh as default shell ---
 if [[ "$SHELL" != */zsh ]]; then
-  chsh -s /bin/zsh
+  sudo chsh -s /bin/zsh "$USER"
   echo "Default shell changed to zsh. Will take effect on next login."
 fi
 
