@@ -19,10 +19,7 @@ My WSL2 dotfiles. Lean zsh setup, cherry-picked one feature at a time.
 ## Install
 
 ```bash
-git clone https://github.com/fnrhombus/fnwsl ~/fnwsl
-cd ~/fnwsl
-chmod +x install.sh
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh | bash
 exec zsh
 ```
 
