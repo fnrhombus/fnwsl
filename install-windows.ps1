@@ -108,12 +108,28 @@ if (Test-Path $wtSettingsPath) {
         $needsSave = $true
     }
 
-    # Rename Ubuntu WSL profiles to match the WSL hostname
+    # Rename/hide Ubuntu WSL profiles — keep first, hide duplicates
+    $foundPrimary = $false
     foreach ($profile in $settings.profiles.list) {
         if ($profile.source -match "Ubuntu|Microsoft\.WSL" -or $profile.name -match "Ubuntu") {
-            if ($profile.name -ne $wslHostname) {
+            if (-not $foundPrimary) {
+                # Keep the first one as the visible profile
+                $foundPrimary = $true
+                if ($profile.name -ne $wslHostname) {
+                    $profile.name = $wslHostname
+                    $needsSave = $true
+                }
+                if ($profile.hidden) {
+                    $profile.hidden = $false
+                    $needsSave = $true
+                }
+            } else {
+                # Hide duplicates
                 $profile.name = $wslHostname
-                $needsSave = $true
+                if (-not $profile.hidden) {
+                    $profile.hidden = $true
+                    $needsSave = $true
+                }
             }
         }
     }
