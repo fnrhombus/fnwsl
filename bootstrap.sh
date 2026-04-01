@@ -14,6 +14,7 @@ else
   git clone https://github.com/fnrhombus/fnwsl ~/fnwsl
 fi
 
+# Run install.sh with a proper tty (curl pipes break interactive prompts)
 cd ~/fnwsl
 chmod +x install.sh
-./install.sh
+bash -c './install.sh < /dev/tty'

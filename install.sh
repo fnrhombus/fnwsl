@@ -41,7 +41,7 @@ fi
 if [[ ! -f ~/.ssh/id_ed25519 ]]; then
   echo ""
   echo "Generating SSH key..."
-  ssh-keygen -t ed25519 -C "2511516+fnrhombus@users.noreply.github.com"
+  ssh-keygen -t ed25519 -C "2511516+fnrhombus@users.noreply.github.com" -f ~/.ssh/id_ed25519
 fi
 
 # --- Install GitHub CLI ---
