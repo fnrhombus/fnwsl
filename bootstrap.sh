@@ -6,16 +6,10 @@ if ! command -v git &>/dev/null; then
   sudo apt-get update && sudo apt-get install -y git
 fi
 
-# Clone or pull latest
-if [[ -d ~/fnwsl ]]; then
-  echo "~/fnwsl already exists, pulling latest..."
-  git -C ~/fnwsl reset --hard
-  git -C ~/fnwsl pull
-else
-  git clone https://github.com/fnrhombus/fnwsl ~/fnwsl
-fi
+# Always start fresh — avoids line-ending and merge conflicts
+rm -rf ~/fnwsl
+git clone https://github.com/fnrhombus/fnwsl ~/fnwsl
 
-# Run install.sh with a proper tty (curl pipes break interactive prompts)
 cd ~/fnwsl
 chmod +x install.sh
 bash -c "./install.sh $* < /dev/tty"
