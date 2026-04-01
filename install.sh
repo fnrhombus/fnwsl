@@ -91,23 +91,23 @@ echo "Installing tools via mise..."
 ~/.local/bin/mise use -g yq
 ~/.local/bin/mise use -g xh
 
-# --- Install Claude Code ---
+# --- Install Claude Code (non-fatal — SSL can be flaky) ---
 if ! command -v claude &>/dev/null; then
   echo ""
   echo "Installing Claude Code..."
+  CLAUDE_INSTALLED=false
   for i in 1 2 3; do
-    curl -fsSL https://claude.ai/install.sh | bash && break
+    if curl -fsSL https://claude.ai/install.sh | bash; then
+      CLAUDE_INSTALLED=true
+      break
+    fi
     echo "  Attempt $i failed, retrying..."
     sleep 2
   done
-fi
-
-# --- Symlink Windows Claude settings ---
-if [[ -d /mnt/d/Users/Tom/.claude ]] && [[ ! -L ~/.claude ]]; then
-  echo ""
-  echo "Symlinking Windows Claude settings..."
-  [[ -d ~/.claude ]] && mv ~/.claude ~/.claude.bak
-  ln -s /mnt/d/Users/Tom/.claude ~/.claude
+  if ! $CLAUDE_INSTALLED; then
+    echo "  WARNING: Claude Code install failed. Run manually later:"
+    echo "    curl -fsSL https://claude.ai/install.sh | bash"
+  fi
 fi
 
 # --- WSL hostname (windows-hostname + "-wsl") ---
@@ -143,6 +143,14 @@ done
 stow --restow --target="$HOME" zsh
 stow --restow --target="$HOME" git
 stow --restow --target="$HOME" tmux
+
+# --- Symlink Windows Claude settings (after stow to avoid path confusion) ---
+if [[ -d /mnt/d/Users/Tom/.claude ]] && [[ ! -L ~/.claude ]]; then
+  echo ""
+  echo "Symlinking Windows Claude settings..."
+  [[ -d ~/.claude ]] && mv ~/.claude ~/.claude.bak
+  ln -s /mnt/d/Users/Tom/.claude ~/.claude
+fi
 
 # SSH config needs special handling (into ~/.ssh/)
 mkdir -p ~/.ssh
