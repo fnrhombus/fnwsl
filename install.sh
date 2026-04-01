@@ -95,7 +95,11 @@ echo "Installing tools via mise..."
 if ! command -v claude &>/dev/null; then
   echo ""
   echo "Installing Claude Code..."
-  curl -fsSL https://claude.ai/install.sh | bash
+  for i in 1 2 3; do
+    curl -fsSL https://claude.ai/install.sh | bash && break
+    echo "  Attempt $i failed, retrying..."
+    sleep 2
+  done
 fi
 
 # --- Symlink Windows Claude settings ---
