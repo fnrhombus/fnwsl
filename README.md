@@ -18,8 +18,16 @@ My WSL2 dotfiles. Lean zsh setup, cherry-picked one feature at a time.
 
 ## Install
 
+From an **elevated PowerShell** (does everything — installs WSL, Ubuntu, all tools, networking):
+
+```powershell
+$env:SSH_PASSPHRASE = "yourpassphrase"; irm https://raw.githubusercontent.com/fnrhombus/fnwsl/main/install-windows.ps1 | iex
+```
+
+Or from inside an existing WSL instance:
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh | bash -s -- "yourpassphrase"
 exec zsh
 ```
 
