@@ -1,12 +1,12 @@
 # fnwsl Windows-side setup
 # Run from elevated PowerShell:
-#   irm https://raw.githubusercontent.com/fnrhombus/fnwsl/main/install-windows.ps1 | iex
+#   .\install-windows.ps1 "mypassphrase"
 #
-# Or with SSH passphrase:
-#   $env:SSH_PASSPHRASE = "mypassphrase"; irm https://raw.githubusercontent.com/fnrhombus/fnwsl/main/install-windows.ps1 | iex
+# Or one-liner (download and run):
+#   iwr -Uri https://raw.githubusercontent.com/fnrhombus/fnwsl/main/install-windows.ps1 -OutFile $env:TEMP\fnwsl.ps1; & $env:TEMP\fnwsl.ps1 "mypassphrase"
 
 param(
-    [string]$SshPassphrase = $env:SSH_PASSPHRASE
+    [string]$SshPassphrase
 )
 
 $ErrorActionPreference = "Stop"

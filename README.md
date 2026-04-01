@@ -21,7 +21,7 @@ My WSL2 dotfiles. Lean zsh setup, cherry-picked one feature at a time.
 From an **elevated PowerShell** (does everything — installs WSL, Ubuntu, all tools, networking):
 
 ```powershell
-$env:SSH_PASSPHRASE = "yourpassphrase"; irm https://raw.githubusercontent.com/fnrhombus/fnwsl/main/install-windows.ps1 | iex
+iwr -Uri https://raw.githubusercontent.com/fnrhombus/fnwsl/main/install-windows.ps1 -OutFile $env:TEMP\fnwsl.ps1; & $env:TEMP\fnwsl.ps1 "yourpassphrase"
 ```
 
 Or from inside an existing WSL instance:
