@@ -92,11 +92,12 @@ if (-not $usbipd) {
     Write-Host "usbipd-win already installed." -ForegroundColor DarkGray
 }
 
-# --- Set Nerd Font on Windows Terminal WSL profile ---
+# --- Configure Windows Terminal (Nerd Font + rename WSL profile) ---
 $wtSettingsPath = "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
 if (Test-Path $wtSettingsPath) {
     $settings = Get-Content $wtSettingsPath -Raw | ConvertFrom-Json
     $needsSave = $false
+    $wslHostname = "$($env:COMPUTERNAME.ToLower())-wsl"
 
     # Set font on defaults if not already set
     if (-not $settings.profiles.defaults.font) {
@@ -107,17 +108,27 @@ if (Test-Path $wtSettingsPath) {
         $needsSave = $true
     }
 
+    # Rename Ubuntu WSL profiles to match the WSL hostname
+    foreach ($profile in $settings.profiles.list) {
+        if ($profile.source -match "Ubuntu|Microsoft\.WSL" -or $profile.name -match "Ubuntu") {
+            if ($profile.name -ne $wslHostname) {
+                $profile.name = $wslHostname
+                $needsSave = $true
+            }
+        }
+    }
+
     if ($needsSave) {
         Write-Host ""
-        Write-Host "Setting CaskaydiaCove Nerd Font in Windows Terminal..." -ForegroundColor Yellow
+        Write-Host "Configuring Windows Terminal (font + renaming WSL profile to '$wslHostname')..." -ForegroundColor Yellow
         $settings | ConvertTo-Json -Depth 10 | Set-Content $wtSettingsPath -Encoding UTF8
     } else {
         Write-Host ""
-        Write-Host "Windows Terminal font already configured." -ForegroundColor DarkGray
+        Write-Host "Windows Terminal already configured." -ForegroundColor DarkGray
     }
 } else {
     Write-Host ""
-    Write-Host "Windows Terminal settings not found — set font manually." -ForegroundColor DarkYellow
+    Write-Host "Windows Terminal settings not found — configure manually." -ForegroundColor DarkYellow
 }
 
 # --- Done ---
