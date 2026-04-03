@@ -22,38 +22,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Remove unwanted files
+          # Remove files that shouldn't be on main
           git rm -rf --ignore-unmatch CLAUDE.md .claude/
           git rm -rf --ignore-unmatch .claude
 
-          # Strip co-authored-by lines mentioning AI assistants from recent commits
-          # by squashing everything into a single commit on main
-          TREE=$(git write-tree)
-
-          # Get the current main tip (if it exists) as parent context,
-          # but we'll just build a clean snapshot commit
-          MAIN_TIP=$(git rev-parse origin/main 2>/dev/null || true)
-
-          # Build a clean commit message from the dev branch
-          # Collect subjects of commits on dev that aren't on main
-          if [ -n "$MAIN_TIP" ]; then
-            SUBJECTS=$(git log --format="%s" origin/main..HEAD | grep -iv 'claude\|anthropic' || true)
-            # Use main tip as parent so history stays contiguous
-            PARENT_FLAG="-p $MAIN_TIP"
+          # Commit the removal (if anything changed) and push
+          if git diff --cached --quiet; then
+            # Nothing to remove, fast-forward main to dev
+            git push origin HEAD:refs/heads/main
           else
-            SUBJECTS=$(git log --format="%s" HEAD | grep -iv 'claude\|anthropic' || true)
-            PARENT_FLAG=""
+            git commit -m "sync from dev (clean)"
+            git push origin HEAD:refs/heads/main
           fi
-
-          # Fallback message if everything was filtered
-          if [ -z "$SUBJECTS" ]; then
-            SUBJECTS="sync from dev"
-          fi
-
-          MSG=$(printf "sync from dev\n\n%s" "$SUBJECTS")
-
-          # Create the commit object directly (bypasses any trailer issues)
-          COMMIT=$(echo "$MSG" | git commit-tree $TREE $PARENT_FLAG)
-
-          # Force-update main to this commit
-          git push origin "$COMMIT:refs/heads/main" --force
