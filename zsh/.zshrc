@@ -12,6 +12,7 @@ source "${ZGEN_DIR}/zgenom.zsh"
 
 if ! zgenom saved; then
   # --- Plugins ---
+  zgenom ohmyzsh                          # bootstrap oh-my-zsh (required before loading its plugins)
   zgenom ohmyzsh plugins/sudo             # Esc-Esc to prepend sudo
   zgenom ohmyzsh plugins/colored-man-pages # colorized man pages
   zgenom ohmyzsh plugins/extract          # `extract` any archive format
