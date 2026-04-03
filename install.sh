@@ -7,6 +7,9 @@ P10K_WIZARD="${3:-}"
 
 echo "=== fnwsl setup ==="
 
+# --- Fix WSL2 stack limit (prevents native binary crashes under WSL) ---
+ulimit -s unlimited
+
 # --- Fix WSL2 MTU (prevents TLS/SSL failures on large downloads) ---
 if ip link show eth0 &>/dev/null; then
   sudo ip link set dev eth0 mtu 1350
@@ -57,19 +60,6 @@ if [[ ! -f ~/.ssh/id_ed25519 ]]; then
   fi
 fi
 
-# --- Install GitHub CLI ---
-if ! command -v gh &>/dev/null; then
-  echo ""
-  echo "Installing GitHub CLI..."
-  (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
-    && sudo mkdir -p -m 755 /etc/apt/keyrings \
-    && wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
-    && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-    && sudo apt update \
-    && sudo apt install gh -y
-fi
-
 # --- Install mise (tool version manager) ---
 if ! command -v mise &>/dev/null; then
   echo ""
@@ -84,30 +74,15 @@ if ! command -v direnv &>/dev/null; then
   sudo apt-get install -y direnv
 fi
 
-# --- Install zoxide (smart cd) ---
-if ! command -v zoxide &>/dev/null; then
-  echo ""
-  echo "Installing zoxide..."
-  curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
-fi
-
 # --- Install tools via mise ---
 echo ""
 echo "Installing tools via mise..."
 ~/.local/bin/mise use -g sd
 ~/.local/bin/mise use -g yq
 ~/.local/bin/mise use -g xh
-
-# --- Install Claude Code (non-fatal — install can crash under WSL) ---
-if ! command -v claude &>/dev/null; then
-  echo ""
-  echo "Installing Claude Code..."
-  # Run in a subshell so a hard crash (stack overflow, SIGSEGV) can't kill our script
-  if ! (curl -fsSL https://claude.ai/install.sh | bash) 2>/dev/null; then
-    echo "  WARNING: Claude Code install failed. Run manually later:"
-    echo "    curl -fsSL https://claude.ai/install.sh | bash"
-  fi
-fi
+~/.local/bin/mise use -g gh
+~/.local/bin/mise use -g zoxide
+~/.local/bin/mise use -g claude-code
 
 # --- WSL hostname and boot config ---
 if [[ -n "$WSL_NAME" ]]; then
@@ -184,11 +159,11 @@ if [[ -f ~/.ssh/id_ed25519.pub ]]; then
 fi
 
 # --- Register SSH key with GitHub ---
-if command -v gh &>/dev/null && gh auth status &>/dev/null; then
+if ~/.local/bin/mise exec -- gh auth status &>/dev/null; then
   echo ""
   echo "Registering SSH key with GitHub..."
-  gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) - WSL" --type authentication 2>/dev/null || true
-  gh ssh-key add ~/.ssh/id_ed25519.pub --type signing 2>/dev/null || true
+  ~/.local/bin/mise exec -- gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) - WSL" --type authentication 2>/dev/null || true
+  ~/.local/bin/mise exec -- gh ssh-key add ~/.ssh/id_ed25519.pub --type signing 2>/dev/null || true
 fi
 
 # --- SSH server (port 2222, avoids conflict with Windows sshd on 22) ---
