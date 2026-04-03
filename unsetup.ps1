@@ -85,13 +85,23 @@ $selectedNames = @()
 if ($WslName) {
     $selectedNames = @($WslName)
 } else {
-    $trackedNames = @()
+    # Gather known names from tracker and installed WSL distros
+    $knownNames = [System.Collections.Generic.List[string]]::new()
     if ($trackerData -and $trackerData.instances) {
-        $trackedNames = @($trackerData.instances.PSObject.Properties.Name)
+        foreach ($name in $trackerData.instances.PSObject.Properties.Name) {
+            $knownNames.Add($name)
+        }
+    }
+    $distroOutput = (wsl -l -q 2>$null) -join "`n" -replace "`0",""
+    foreach ($line in $distroOutput -split "`n") {
+        $distro = $line.Trim()
+        if ($distro -and $distro -ne "docker-desktop" -and $distro -ne "docker-desktop-data" -and -not $knownNames.Contains($distro)) {
+            $knownNames.Add($distro)
+        }
     }
 
-    if ($trackedNames.Count -gt 0) {
-        $selectedNames = @(Show-CheckboxMenu -Title "Select instances to remove:" -Items $trackedNames)
+    if ($knownNames.Count -gt 0) {
+        $selectedNames = @(Show-CheckboxMenu -Title "Select instances to remove:" -Items $knownNames.ToArray())
         if ($selectedNames.Count -eq 0) {
             Write-Host "No instances selected." -ForegroundColor DarkGray
             exit 0
