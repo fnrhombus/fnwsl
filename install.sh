@@ -146,11 +146,12 @@ if [[ ! -d ~/.zgenom ]]; then
 fi
 
 # --- Symlink Windows Claude settings (after stow to avoid path confusion) ---
-if [[ -d /mnt/d/Users/Tom/.claude ]] && [[ ! -L ~/.claude ]]; then
+WIN_USERPROFILE=$(cmd.exe /c "echo %USERPROFILE%" 2>/dev/null | tr -d '\r' | sed 's|\\|/|g' | sed 's|^\([A-Za-z]\):|/mnt/\L\1|')
+if [[ -n "$WIN_USERPROFILE" && -d "$WIN_USERPROFILE/.claude" ]] && [[ ! -L ~/.claude ]]; then
   echo ""
   echo "Symlinking Windows Claude settings..."
   [[ -d ~/.claude ]] && mv ~/.claude ~/.claude.bak
-  ln -s /mnt/d/Users/Tom/.claude ~/.claude
+  ln -s "$WIN_USERPROFILE/.claude" ~/.claude
 fi
 
 # --- Powerlevel10k config (suppress wizard by default) ---
