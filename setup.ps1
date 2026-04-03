@@ -362,7 +362,11 @@ Remove-Item "$exportPath"
 Write-Host "  Distro is now '$WslName'." -ForegroundColor Green
 
 # --- Set as default WSL distro ---
+$previousDefault = $null
 if ($SetDefault) {
+    $previousDefault = (wsl -l 2>$null) -join "`n" -replace "`0","" -split "`n" |
+        Where-Object { $_ -match '\(Default\)' } |
+        ForEach-Object { ($_ -replace '\s*\(Default\)','').Trim() }
     wsl --set-default "$WslName"
     Write-Host "  Set '$WslName' as default WSL distro." -ForegroundColor Green
 }
@@ -419,6 +423,7 @@ if (-not $tracker.instances) {
 $instanceRecord = @{
     setupTime = (Get-Date -Format "o")
     wslconfig = if ($wslconfigExisted) { $wslconfigChanges } else { $null }
+    previousDefault = $previousDefault
 }
 $tracker.instances | Add-Member -NotePropertyName $WslName -NotePropertyValue $instanceRecord -Force
 $tracker | ConvertTo-Json -Depth 10 | Set-Content $fnwslTracker -Encoding UTF8

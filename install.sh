@@ -54,9 +54,9 @@ if [[ ! -f ~/.ssh/id_ed25519 ]]; then
   echo ""
   echo "Generating SSH key..."
   if [[ -n "$SSH_PASSPHRASE" ]]; then
-    ssh-keygen -t ed25519 -C "2511516+fnrhombus@users.noreply.github.com" -f ~/.ssh/id_ed25519 -N "$SSH_PASSPHRASE"
+    ssh-keygen -t ed25519 -C "$(hostname)" -f ~/.ssh/id_ed25519 -N "$SSH_PASSPHRASE"
   else
-    ssh-keygen -t ed25519 -C "2511516+fnrhombus@users.noreply.github.com" -f ~/.ssh/id_ed25519
+    ssh-keygen -t ed25519 -C "$(hostname)" -f ~/.ssh/id_ed25519
   fi
 fi
 
@@ -169,40 +169,75 @@ fi
 ln -sf "$SCRIPT_DIR/ssh/config" ~/.ssh/config
 chmod 600 ~/.ssh/config
 
-# --- Allowed signers for SSH commit verification ---
-if [[ -f ~/.ssh/id_ed25519.pub ]]; then
-  echo "2511516+fnrhombus@users.noreply.github.com $(cat ~/.ssh/id_ed25519.pub)" > ~/.ssh/allowed_signers
-fi
+# --- Configure git identity and SSH keys from GitHub ---
+configure_github_identity() {
+  local gh_cmd="$1"
+  local gh_user gh_id gh_email
 
-# --- Register SSH key with GitHub ---
+  gh_user=$($gh_cmd api user --jq '.login' 2>/dev/null) || return 1
+  gh_id=$($gh_cmd api user --jq '.id' 2>/dev/null) || return 1
+  gh_email="${gh_id}+${gh_user}@users.noreply.github.com"
+
+  # Git identity (written to ~/.gitconfig.local, included by stowed .gitconfig)
+  cat > ~/.gitconfig.local <<GITEOF
+[user]
+    name = ${gh_user}
+    email = ${gh_email}
+GITEOF
+
+  # Allowed signers for SSH commit verification
+  if [[ -f ~/.ssh/id_ed25519.pub ]]; then
+    echo "${gh_email} $(cat ~/.ssh/id_ed25519.pub)" > ~/.ssh/allowed_signers
+  fi
+
+  # Register SSH key with GitHub
+  $gh_cmd ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) - WSL" --type authentication 2>/dev/null || true
+  $gh_cmd ssh-key add ~/.ssh/id_ed25519.pub --type signing 2>/dev/null || true
+
+  echo "  Git identity: ${gh_user} <${gh_email}>"
+  echo "  SSH key registered with GitHub."
+}
+
 if ~/.local/bin/mise exec -- gh auth status &>/dev/null; then
   echo ""
-  echo "Registering SSH key with GitHub..."
-  ~/.local/bin/mise exec -- gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) - WSL" --type authentication 2>/dev/null || true
-  ~/.local/bin/mise exec -- gh ssh-key add ~/.ssh/id_ed25519.pub --type signing 2>/dev/null || true
+  echo "Configuring GitHub identity..."
+  configure_github_identity "$HOME/.local/bin/mise exec -- gh"
 else
   # Plant a self-deleting login script for first interactive session
   echo ""
-  echo "No GitHub token found — deferring gh auth to first login."
+  echo "No GitHub token found — deferring GitHub setup to first login."
   sudo tee /etc/profile.d/fnwsl-gh-setup.sh > /dev/null <<'GHEOF'
 #!/bin/bash
-# fnwsl: one-time GitHub auth + SSH key registration (self-deleting)
+# fnwsl: one-time GitHub auth, git identity, and SSH key registration (self-deleting)
 if [ -t 0 ] && command -v gh &>/dev/null; then
-  if gh auth status &>/dev/null; then
-    # Token already available (e.g. via WSLENV) — just register keys
+  configure_and_register() {
+    local gh_user gh_id gh_email
+    gh_user=$(gh api user --jq '.login' 2>/dev/null) || return 1
+    gh_id=$(gh api user --jq '.id' 2>/dev/null) || return 1
+    gh_email="${gh_id}+${gh_user}@users.noreply.github.com"
+    cat > ~/.gitconfig.local <<GITEOF
+[user]
+    name = ${gh_user}
+    email = ${gh_email}
+GITEOF
+    if [ -f ~/.ssh/id_ed25519.pub ]; then
+      echo "${gh_email} $(cat ~/.ssh/id_ed25519.pub)" > ~/.ssh/allowed_signers
+    fi
     gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) - WSL" --type authentication 2>/dev/null || true
     gh ssh-key add ~/.ssh/id_ed25519.pub --type signing 2>/dev/null || true
+    echo "fnwsl: Git identity set to ${gh_user} <${gh_email}>"
     echo "fnwsl: SSH key registered with GitHub."
+  }
+
+  if gh auth status &>/dev/null; then
+    configure_and_register
   else
     echo ""
     echo "=== fnwsl: GitHub authentication ==="
-    echo "Authenticate with GitHub to register your SSH key for git signing."
+    echo "Authenticate with GitHub to register your SSH key and configure git identity."
     echo ""
     if gh auth login; then
-      gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) - WSL" --type authentication 2>/dev/null || true
-      gh ssh-key add ~/.ssh/id_ed25519.pub --type signing 2>/dev/null || true
-      echo ""
-      echo "SSH key registered with GitHub."
+      configure_and_register
     fi
   fi
   sudo rm -f /etc/profile.d/fnwsl-gh-setup.sh
@@ -286,8 +321,16 @@ done
 
 # SSH
 verify "SSH key" "[[ -f ~/.ssh/id_ed25519 ]]"
-verify "SSH allowed_signers" "[[ -f ~/.ssh/allowed_signers ]]"
 verify "SSH config symlink" "[[ -L ~/.ssh/config ]]"
+
+# Git identity (only if gh was authed during install)
+if [[ -f ~/.gitconfig.local ]]; then
+  verify "git identity (.gitconfig.local)" "[[ -f ~/.gitconfig.local ]]"
+  verify "SSH allowed_signers" "[[ -f ~/.ssh/allowed_signers ]]"
+else
+  echo "  SKIP  git identity (will be configured on first login)"
+  echo "  SKIP  SSH allowed_signers (will be configured on first login)"
+fi
 
 # Dotfiles
 verify ".zshrc symlink" "[[ -L ~/.zshrc ]]"

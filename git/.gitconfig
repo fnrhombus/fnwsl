@@ -1,7 +1,8 @@
 [user]
-    name = rhombus
-    email = 2511516+fnrhombus@users.noreply.github.com
     signingkey = ~/.ssh/id_ed25519.pub
+
+[include]
+    path = ~/.gitconfig.local
 
 [init]
     defaultBranch = main

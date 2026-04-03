@@ -223,6 +223,14 @@ foreach ($WslName in $selectedNames) {
     Write-Host "This will:" -ForegroundColor Yellow
     Write-Host "  - Unregister '$WslName' WSL distro (deletes all data inside it)"
     Write-Host "  - Remove WSL/Ubuntu profiles from Windows Terminal"
+    if ($instanceData -and $instanceData.previousDefault) {
+        $currentDefault = (wsl -l 2>$null) -join "`n" -replace "`0","" -split "`n" |
+            Where-Object { $_ -match '\(Default\)' } |
+            ForEach-Object { ($_ -replace '\s*\(Default\)','').Trim() }
+        if ($currentDefault -eq $WslName) {
+            Write-Host "  - Restore default WSL distro to '$($instanceData.previousDefault)'"
+        }
+    }
 
     if ($KeepWslConfig) {
         Write-Host "  - .wslconfig: keep unchanged (-KeepWslConfig)" -ForegroundColor DarkGray
@@ -264,11 +272,29 @@ foreach ($WslName in $selectedNames) {
 
     # --- Unregister WSL distro ---
     $distroList = @((wsl -l -q 2>$null) -join "`n" -replace "`0","" -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+
+    # Check if this distro is the current default
+    $isDefault = $false
+    $currentDefault = (wsl -l 2>$null) -join "`n" -replace "`0","" -split "`n" |
+        Where-Object { $_ -match '\(Default\)' } |
+        ForEach-Object { ($_ -replace '\s*\(Default\)','').Trim() }
+    if ($currentDefault -eq $WslName) { $isDefault = $true }
+
     if ($WslName -in $distroList) {
         Write-Host ""
         Write-Host "Unregistering '$WslName' WSL distro..." -ForegroundColor Yellow
         wsl --unregister "$WslName"
         Write-Host "  Done." -ForegroundColor Green
+
+        # Restore previous default distro
+        if ($isDefault -and $instanceData -and $instanceData.previousDefault) {
+            $restoreTo = $instanceData.previousDefault
+            $remainingDistros = @((wsl -l -q 2>$null) -join "`n" -replace "`0","" -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            if ($restoreTo -in $remainingDistros) {
+                wsl --set-default "$restoreTo"
+                Write-Host "  Restored default WSL distro to '$restoreTo'." -ForegroundColor Green
+            }
+        }
     } else {
         Write-Host ""
         Write-Host "No '$WslName' distro found, skipping." -ForegroundColor DarkGray
