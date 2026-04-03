@@ -83,6 +83,7 @@ echo "Installing tools via mise..."
 ~/.local/bin/mise use -g gh
 ~/.local/bin/mise use -g zoxide
 ~/.local/bin/mise use -g claude-code
+~/.local/bin/mise trust ~/.config/mise/config.toml 2>/dev/null || true
 
 # --- WSL hostname and boot config ---
 if [[ -n "$WSL_NAME" ]]; then
@@ -110,6 +111,15 @@ EOF
 elif ! grep -q "command=" /etc/wsl.conf 2>/dev/null; then
   sudo sed -i '/\[boot\]/a command=/sbin/ip link set dev eth0 mtu 1350' /etc/wsl.conf
 fi
+if ! grep -q "appendWindowsPath" /etc/wsl.conf 2>/dev/null; then
+  echo ""
+  echo "Disabling Windows PATH inheritance (prevents tool conflicts)..."
+  sudo tee -a /etc/wsl.conf > /dev/null <<EOF
+
+[interop]
+appendWindowsPath=false
+EOF
+fi
 
 # --- Stow dotfiles ---
 echo ""
@@ -128,6 +138,12 @@ done
 stow --restow --target="$HOME" zsh
 stow --restow --target="$HOME" git
 stow --restow --target="$HOME" tmux
+
+# --- Pre-clone zgenom (avoids git template race on first zsh login) ---
+if [[ ! -d ~/.zgenom ]]; then
+  echo "Pre-cloning zgenom..."
+  git clone https://github.com/jandamm/zgenom.git ~/.zgenom
+fi
 
 # --- Symlink Windows Claude settings (after stow to avoid path confusion) ---
 if [[ -d /mnt/d/Users/Tom/.claude ]] && [[ ! -L ~/.claude ]]; then
@@ -255,6 +271,7 @@ verify ".p10k.zsh" "[[ -f ~/.p10k.zsh ]]"
 verify "wsl.conf hostname" "grep -q 'hostname=' /etc/wsl.conf"
 verify "wsl.conf systemd" "grep -q 'systemd=true' /etc/wsl.conf"
 verify "wsl.conf MTU boot cmd" "grep -q 'mtu 1350' /etc/wsl.conf"
+verify "wsl.conf appendWindowsPath=false" "grep -q 'appendWindowsPath=false' /etc/wsl.conf"
 
 # udev rules
 verify "udev USB serial rules" "[[ -f /etc/udev/rules.d/99-usb-serial.rules ]]"

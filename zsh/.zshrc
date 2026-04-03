@@ -73,6 +73,15 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'  # case-insensitive
 # --- Ensure ~/.local/bin is on PATH (mise, zoxide install here) ---
 export PATH="$HOME/.local/bin:$PATH"
 
+# --- Selective Windows interop (appendWindowsPath=false in wsl.conf) ---
+# Only expose specific Windows tools instead of inheriting the full Windows PATH
+WIN_SYS="/mnt/c/Windows/System32"
+for bin in clip.exe explorer.exe hostname.exe; do
+  [[ -x "$WIN_SYS/$bin" ]] && alias "$bin"="$WIN_SYS/$bin"
+done
+[[ -x "/mnt/c/Windows/explorer.exe" ]] && alias open="explorer.exe"
+unset WIN_SYS
+
 # --- Deduplicate PATH ---
 typeset -aU path
 

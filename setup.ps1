@@ -433,6 +433,12 @@ Write-Host "  1. Open a new WSL terminal tab"
 Write-Host "  2. Run 'gh auth login' to authenticate with GitHub"
 Write-Host "  3. Verify git signing: git log --show-signature"
 Write-Host "  4. To reconfigure p10k prompt: p10k configure"
+if (Get-Process "Docker Desktop" -ErrorAction SilentlyContinue) {
+    Write-Host ""
+    Write-Host "Docker:" -ForegroundColor White
+    Write-Host "  Enable WSL integration for '$WslName' in Docker Desktop:"
+    Write-Host "  Settings > Resources > WSL Integration > enable '$WslName'"
+}
 Write-Host ""
 Write-Host "USB passthrough (when needed):" -ForegroundColor White
 Write-Host "  usbipd list                                         # find your device"

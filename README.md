@@ -32,6 +32,8 @@ pwsh -c "irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.p
 
 It will ask for your WSL name, username, and passphrase, then do everything else non-interactively.
 
+**Note:** The prompt uses [Powerlevel10k](https://github.com/romkatv/powerlevel10k) with a Nerd Font. If your terminal shows broken/missing glyphs, install a Nerd Font (e.g. [CaskaydiaCove](https://github.com/ryanoasis/nerd-fonts/releases/latest)). If you use oh-my-posh on Windows, the fonts are already there.
+
 To pass arguments, download and run as a script:
 
 ```powershell
@@ -100,3 +102,7 @@ fnwsl/
 ## Local overrides
 
 Drop files in `~/.zshrc.d/` — they're sourced at the end of `.zshrc`.
+
+## TODO
+
+- [ ] Idempotent re-run / update path (update dotfiles and tools without full teardown)
