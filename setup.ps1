@@ -126,11 +126,9 @@ if (Test-Path "$env:USERPROFILE\.fnwsl") {
 }
 
 if (-not $WslUsername) {
-    $WslUsername = Read-Host "WSL username"
-    if (-not $WslUsername) {
-        Write-Host "ERROR: Username is required." -ForegroundColor Red
-        return
-    }
+    $defaultUsername = ($env:USERNAME ?? $env:USER).ToLower()
+    $WslUsername = Read-Host "WSL username (default: $defaultUsername)"
+    if (-not $WslUsername) { $WslUsername = $defaultUsername }
 }
 if (-not $Passphrase) {
     $securePass = Read-Host "Passphrase (used for WSL password and SSH key)" -AsSecureString
