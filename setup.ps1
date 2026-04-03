@@ -11,8 +11,8 @@
 # Let Powerlevel10k wizard run instead of using default config:
 #   .\setup.ps1 -P10kWizard
 #
-# Or one-liner (download and run):
-#   iwr https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 -OutFile $env:TEMP\fnwsl.ps1; gsudo pwsh $env:TEMP\fnwsl.ps1
+# Or one-liner (download and run as admin):
+#   iwr https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 -OutFile $env:TEMP\fnwsl.ps1; Start-Process pwsh "-File $env:TEMP\fnwsl.ps1" -Verb RunAs
 
 param(
     [string]$WslUsername,
