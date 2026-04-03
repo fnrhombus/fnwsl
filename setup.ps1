@@ -82,6 +82,26 @@ Write-Host "  WSL name:   $WslName" -ForegroundColor DarkGray
 Write-Host "  Username:   $WslUsername" -ForegroundColor DarkGray
 Write-Host "  Passphrase: ****" -ForegroundColor DarkGray
 
+# --- Detect GitHub token (for SSH key registration inside WSL) ---
+$ghToken = $env:GH_TOKEN
+if (-not $ghToken) { $ghToken = $env:GITHUB_TOKEN }
+if (-not $ghToken -and (Get-Command gh -ErrorAction SilentlyContinue)) {
+    $ghToken = gh auth token 2>$null
+    if ($LASTEXITCODE -ne 0) { $ghToken = $null }
+}
+if ($ghToken) {
+    # Verify the token actually works
+    $env:GH_TOKEN = $ghToken
+    gh auth status *>$null
+    if ($LASTEXITCODE -ne 0) { $ghToken = $null }
+    $env:GH_TOKEN = $null
+}
+if ($ghToken) {
+    Write-Host "  GitHub:     authenticated" -ForegroundColor DarkGray
+} else {
+    Write-Host "  GitHub:     not authenticated (will prompt on first WSL login)" -ForegroundColor DarkYellow
+}
+
 # --- Check .wslconfig for conflicts ---
 $wslconfigPath = "$env:USERPROFILE\.wslconfig"
 $requiredSettings = [ordered]@{
@@ -290,7 +310,8 @@ Start-Sleep -Seconds 2
 Write-Host ""
 Write-Host "Running fnwsl setup inside WSL..." -ForegroundColor Yellow
 $p10kArg = if ($P10kWizard) { "1" } else { "" }
-wsl -d $WslName -- bash -c "curl -fsSL 'https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh' | bash -s -- '$Passphrase' '$WslName' '$p10kArg'"
+$ghExport = if ($ghToken) { "export GH_TOKEN='$ghToken'; " } else { "" }
+wsl -d $WslName -- bash -c "${ghExport}curl -fsSL 'https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh' | bash -s -- '$Passphrase' '$WslName' '$p10kArg'"
 Assert-ExitCode "WSL-side setup failed."
 
 # --- Hyper-V firewall: allow inbound to WSL ---

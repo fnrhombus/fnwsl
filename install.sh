@@ -180,6 +180,27 @@ if ~/.local/bin/mise exec -- gh auth status &>/dev/null; then
   echo "Registering SSH key with GitHub..."
   ~/.local/bin/mise exec -- gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) - WSL" --type authentication 2>/dev/null || true
   ~/.local/bin/mise exec -- gh ssh-key add ~/.ssh/id_ed25519.pub --type signing 2>/dev/null || true
+else
+  # Plant a self-deleting login script for first interactive session
+  echo ""
+  echo "No GitHub token found — deferring gh auth to first login."
+  sudo tee /etc/profile.d/fnwsl-gh-setup.sh > /dev/null <<'GHEOF'
+#!/bin/bash
+# fnwsl: one-time GitHub auth + SSH key registration (self-deleting)
+if [ -t 0 ] && command -v gh &>/dev/null; then
+  echo ""
+  echo "=== fnwsl: GitHub authentication ==="
+  echo "Authenticate with GitHub to register your SSH key for git signing."
+  echo ""
+  if gh auth login; then
+    gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) - WSL" --type authentication 2>/dev/null || true
+    gh ssh-key add ~/.ssh/id_ed25519.pub --type signing 2>/dev/null || true
+    echo ""
+    echo "SSH key registered with GitHub."
+  fi
+  sudo rm -f /etc/profile.d/fnwsl-gh-setup.sh
+fi
+GHEOF
 fi
 
 # --- SSH server (port 2222, avoids conflict with Windows sshd on 22) ---
