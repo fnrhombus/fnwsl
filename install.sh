@@ -98,20 +98,12 @@ echo "Installing tools via mise..."
 ~/.local/bin/mise use -g yq
 ~/.local/bin/mise use -g xh
 
-# --- Install Claude Code (non-fatal — SSL can be flaky) ---
+# --- Install Claude Code (non-fatal — install can crash under WSL) ---
 if ! command -v claude &>/dev/null; then
   echo ""
   echo "Installing Claude Code..."
-  CLAUDE_INSTALLED=false
-  for i in 1 2 3; do
-    if curl -fsSL https://claude.ai/install.sh | bash; then
-      CLAUDE_INSTALLED=true
-      break
-    fi
-    echo "  Attempt $i failed, retrying..."
-    sleep 2
-  done
-  if ! $CLAUDE_INSTALLED; then
+  # Run in a subshell so a hard crash (stack overflow, SIGSEGV) can't kill our script
+  if ! (curl -fsSL https://claude.ai/install.sh | bash) 2>/dev/null; then
     echo "  WARNING: Claude Code install failed. Run manually later:"
     echo "    curl -fsSL https://claude.ai/install.sh | bash"
   fi
