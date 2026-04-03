@@ -470,6 +470,20 @@ foreach ($WslName in $selectedNames) {
     }
 }
 
+# --- Check for orphaned Ubuntu distros (failed/interrupted setup) ---
+if (-not $Force) {
+    $remainingDistros = @((wsl -l -q 2>$null) -join "`n" -replace "`0","" -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^Ubuntu' })
+    foreach ($orphan in $remainingDistros) {
+        Write-Host ""
+        $answer = Read-Host "'$orphan' distro found - is this from a failed fnwsl setup? Remove it? (y/N)"
+        if ($answer -match '^[Yy]') {
+            Write-Host "Unregistering '$orphan'..." -ForegroundColor Yellow
+            wsl --unregister "$orphan"
+            Write-Host "  Done." -ForegroundColor Green
+        }
+    }
+}
+
 # --- Done ---
 Write-Host ""
 Write-Host "=== Teardown complete ===" -ForegroundColor Cyan
