@@ -46,6 +46,21 @@ curl -fsSL https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh |
 exec zsh
 ```
 
+## Uninstall
+
+From an elevated PowerShell:
+
+```powershell
+irm https://github.com/fnrhombus/fnwsl/releases/latest/download/unsetup.ps1 | iex
+```
+
+Or fully non-interactive:
+
+```powershell
+iwr https://github.com/fnrhombus/fnwsl/releases/latest/download/unsetup.ps1 -OutFile $env:TEMP\fnwsl-unsetup.ps1
+.\$env:TEMP\fnwsl-unsetup.ps1 -WslName "dev-wsl" -Force
+```
+
 ## Structure
 
 ```
