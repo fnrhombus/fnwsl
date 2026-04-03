@@ -52,6 +52,63 @@ Write-Host ""
 Write-Host "  WSL name:   $WslName" -ForegroundColor DarkGray
 Write-Host "  Username:   $WslUsername" -ForegroundColor DarkGray
 Write-Host "  Passphrase: ****" -ForegroundColor DarkGray
+
+# --- Check .wslconfig for conflicts ---
+$wslconfigPath = "$env:USERPROFILE\.wslconfig"
+$requiredSettings = [ordered]@{
+    "networkingMode" = @{
+        value = "mirrored"
+        reason = "Mirrored networking shares your Windows IP with WSL. This means WSL services (SSH, web servers) are reachable from other devices on your LAN, IPv6 works natively, and localhost is shared between Windows and WSL."
+        impacts = @{
+            "nat"         = "NAT puts WSL behind a virtual subnet. Other machines on your network cannot reach WSL services directly. IPv6 will not work. You'll need manual port forwarding (netsh) for any WSL service you want to expose."
+            "virtioproxy" = "VirtioProxy is experimental and uses a different networking stack. It may work for basic scenarios but has limited community support and may not handle all protocols correctly. IPv6 and inbound connections may behave differently than expected."
+        }
+        defaultImpact = "fnwsl expects mirrored networking for SSH access, IPv6, and LAN visibility. Your current value may not support these features."
+    }
+    "dnsTunneling" = @{
+        value = "true"
+        reason = "DNS tunneling routes WSL's DNS requests through the Windows DNS stack. This is required for mirrored networking to resolve hostnames correctly, and ensures WSL respects your VPN, corporate DNS, and split-tunnel configurations."
+        impact = "WSL will attempt to resolve DNS independently, which often fails under mirrored networking. You may see intermittent DNS failures, especially on VPN or corporate networks where DNS is managed by Windows."
+    }
+    "firewall" = @{
+        value = "true"
+        reason = "Applies Windows Defender Firewall rules to WSL traffic. With mirrored networking, WSL shares your real IP, so firewall protection ensures WSL services aren't silently exposed to the network without your firewall rules."
+        impact = "WSL traffic will bypass Windows Defender Firewall entirely. Any service running in WSL will be directly accessible from the network with no firewall filtering, which is a security risk on shared or public networks."
+    }
+}
+$wslconfigOverrides = @{}
+if (Test-Path $wslconfigPath) {
+    $existingLines = Get-Content $wslconfigPath
+    $inWsl2 = $false
+    foreach ($line in $existingLines) {
+        $trimmed = $line.Trim()
+        if ($trimmed -match '^\[') {
+            $inWsl2 = $trimmed -eq '[wsl2]'
+        } elseif ($inWsl2 -and $trimmed -match '^(\w+)\s*=\s*(.+)$') {
+            $key = $Matches[1]
+            $val = $Matches[2].Trim()
+            if ($requiredSettings.Contains($key) -and $val -ne $requiredSettings[$key].value) {
+                $setting = $requiredSettings[$key]
+                $impactMsg = if ($setting.impacts -and $setting.impacts.ContainsKey($val)) {
+                    $setting.impacts[$val]
+                } elseif ($setting.defaultImpact) {
+                    $setting.defaultImpact
+                } else {
+                    $setting.impact
+                }
+                Write-Host ""
+                Write-Host "  .wslconfig conflict: $key=$val (current) vs $($setting.value) (required)" -ForegroundColor Yellow
+                Write-Host "    Why: $($setting.reason)" -ForegroundColor DarkGray
+                Write-Host "    If kept ($val): $impactMsg" -ForegroundColor DarkGray
+                $answer = Read-Host "    Change $key to $($setting.value)? (Y/n)"
+                if ($answer -match '^[Nn]') {
+                    $wslconfigOverrides[$key] = $val
+                }
+            }
+        }
+    }
+}
+
 Write-Host ""
 Write-Host "The rest of the install is non-interactive. Feel free to grab a coffee." -ForegroundColor Green
 
@@ -85,21 +142,94 @@ if ($distroOutput -match "Ubuntu") {
     Write-Host "  User '$WslUsername' created and set as default." -ForegroundColor Green
 }
 
-# --- Create .wslconfig (mirrored networking, IPv6) ---
+# --- Configure .wslconfig (mirrored networking, IPv6) ---
 $wslconfigPath = "$env:USERPROFILE\.wslconfig"
-if (-not (Test-Path $wslconfigPath)) {
-    Write-Host ""
-    Write-Host "Creating .wslconfig (mirrored networking)..." -ForegroundColor Yellow
-    @"
-[wsl2]
-networkingMode=mirrored
-dnsTunneling=true
-firewall=true
-"@ | Set-Content -Path $wslconfigPath -Encoding UTF8
-} else {
-    Write-Host ""
-    Write-Host ".wslconfig already exists, skipping." -ForegroundColor DarkGray
+$fnwslTracker = "$env:USERPROFILE\.fnwsl"
+$wslconfigExisted = Test-Path $wslconfigPath
+
+# Determine final values, respecting user overrides from interview
+$mergeSettings = @{}
+foreach ($key in $requiredSettings.Keys) {
+    if ($wslconfigOverrides.ContainsKey($key)) {
+        $mergeSettings[$key] = $wslconfigOverrides[$key]
+    } else {
+        $mergeSettings[$key] = $requiredSettings[$key].value
+    }
 }
+
+# Snapshot current values before we change anything
+$currentValues = @{}
+if ($wslconfigExisted) {
+    $existingLines = Get-Content $wslconfigPath
+    $inWsl2 = $false
+    foreach ($line in $existingLines) {
+        $trimmed = $line.Trim()
+        if ($trimmed -match '^\[') { $inWsl2 = $trimmed -eq '[wsl2]' }
+        elseif ($inWsl2 -and $trimmed -match '^(\w+)\s*=\s*(.+)$') {
+            if ($mergeSettings.ContainsKey($Matches[1])) {
+                $currentValues[$Matches[1]] = $Matches[2].Trim()
+            }
+        }
+    }
+}
+
+# Build per-setting change record
+$wslconfigChanges = @{}
+foreach ($key in $mergeSettings.Keys) {
+    $fromVal = if ($currentValues.ContainsKey($key)) { $currentValues[$key] } else { $null }
+    $wslconfigChanges[$key] = @{ from = $fromVal; to = $mergeSettings[$key] }
+}
+
+# Load or create tracker
+$tracker = @{ wslconfigExisted = $wslconfigExisted; instances = @{} }
+if (Test-Path $fnwslTracker) {
+    $tracker = Get-Content $fnwslTracker -Raw | ConvertFrom-Json
+    # Preserve wslconfigExisted from first run
+}
+if (-not $tracker.instances) {
+    $tracker.instances = @{}
+}
+
+# Record this instance
+$instanceRecord = @{
+    setupTime = (Get-Date -Format "o")
+    wslconfig = if ($wslconfigExisted) { $wslconfigChanges } else { $null }
+}
+$tracker.instances | Add-Member -NotePropertyName $WslName -NotePropertyValue $instanceRecord -Force
+$tracker | ConvertTo-Json -Depth 10 | Set-Content $fnwslTracker -Encoding UTF8
+
+# Merge settings into .wslconfig
+Write-Host ""
+Write-Host "Configuring .wslconfig..." -ForegroundColor Yellow
+$lines = @()
+$inWsl2 = $false
+$wsl2Found = $false
+$setKeys = @{}
+if ($wslconfigExisted) {
+    $lines = @(Get-Content $wslconfigPath)
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        $line = $lines[$i].Trim()
+        if ($line -match '^\[') {
+            $inWsl2 = $line -eq '[wsl2]'
+            if ($inWsl2) { $wsl2Found = $true }
+        } elseif ($inWsl2 -and $line -match '^(\w+)\s*=') {
+            $key = $Matches[1]
+            if ($mergeSettings.ContainsKey($key)) {
+                $lines[$i] = "$key=$($mergeSettings[$key])"
+                $setKeys[$key] = $true
+            }
+        }
+    }
+}
+if (-not $wsl2Found) {
+    if ($lines.Count -gt 0) { $lines += "" }
+    $lines += "[wsl2]"
+}
+$missingKeys = $mergeSettings.Keys | Where-Object { -not $setKeys.ContainsKey($_) }
+foreach ($key in $missingKeys) {
+    $lines += "$key=$($mergeSettings[$key])"
+}
+$lines | Set-Content -Path $wslconfigPath -Encoding UTF8
 
 # --- Restart WSL to pick up new config ---
 Write-Host ""
