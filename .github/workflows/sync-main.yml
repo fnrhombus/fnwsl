@@ -23,8 +23,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # Remove files that shouldn't be on main
-          git rm -rf --ignore-unmatch CLAUDE.md .claude/
-          git rm -rf --ignore-unmatch .claude
+          git rm -rf --ignore-unmatch CLAUDE.md .claude/ memory/
 
           # Commit removal if needed, then force push
           # Force required: cleanup commit at tip is rewritten each sync
