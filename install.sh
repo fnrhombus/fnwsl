@@ -213,6 +213,10 @@ echo ""
 echo "Verifying installation..."
 VERIFY_FAILURES=()
 
+# Activate mise so its tools are on PATH (mirrors what .zshrc does)
+eval "$(~/.local/bin/mise activate bash)" 2>/dev/null
+export PATH="$HOME/.local/bin:$PATH"
+
 verify() {
   local label="$1"
   local check="$2"
@@ -227,20 +231,13 @@ verify() {
 # Shell
 verify "zsh is default shell" "[[ \$(getent passwd \$USER | cut -d: -f7) == */zsh ]]"
 
-# Apt tools
-for cmd in zsh fzf bat fd rg eza lsd tmux stow jq btop keychain direnv tldr; do
-  # fd-find installs as fdfind, bat as batcat on some distros
+# All tools on PATH (apt and mise alike)
+for cmd in zsh fzf bat fd rg eza lsd tmux stow jq btop keychain direnv tldr sd yq xh gh zoxide claude mise; do
   case "$cmd" in
-    bat) verify "$cmd" "command -v bat || command -v batcat" ;;
-    fd)  verify "$cmd" "command -v fd || command -v fdfind" ;;
-    *)   verify "$cmd" "command -v $cmd" ;;
+    bat) verify "$cmd on PATH" "command -v bat || command -v batcat" ;;
+    fd)  verify "$cmd on PATH" "command -v fd || command -v fdfind" ;;
+    *)   verify "$cmd on PATH" "command -v $cmd" ;;
   esac
-done
-
-# Mise and mise-managed tools
-verify "mise" "command -v mise || [[ -x ~/.local/bin/mise ]]"
-for tool in sd yq xh gh zoxide claude; do
-  verify "$tool (mise)" "~/.local/bin/mise which $tool"
 done
 
 # SSH
