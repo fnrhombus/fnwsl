@@ -70,7 +70,7 @@ function Show-CheckboxMenu {
 # --- Ensure running as admin ---
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "ERROR: Run this script from an elevated PowerShell." -ForegroundColor Red
-    exit 1
+    return
 }
 
 Write-Host "=== fnwsl teardown ===" -ForegroundColor Cyan
@@ -107,19 +107,19 @@ if ($WslName) {
     if ($knownNames.Count -eq 0) {
         Write-Host ""
         Write-Host "No fnwsl instances found." -ForegroundColor DarkGray
-        exit 0
+        return
     } elseif ($knownNames.Count -eq 1) {
         $selectedNames = @($knownNames[0])
         Write-Host ""
         Write-Host "Found instance: $($knownNames[0])" -ForegroundColor Yellow
     } elseif ($Force) {
         Write-Host "ERROR: -Force requires -WslName when multiple instances exist." -ForegroundColor Red
-        exit 1
+        return
     } else {
         $selectedNames = @(Show-CheckboxMenu -Title "Select instances to remove:" -Items $knownNames.ToArray())
         if ($selectedNames.Count -eq 0) {
             Write-Host "No instances selected." -ForegroundColor DarkGray
-            exit 0
+            return
         }
     }
 }
@@ -271,7 +271,7 @@ foreach ($WslName in $selectedNames) {
         $confirm = Read-Host "Continue? (Y/n)"
         if ($confirm -match '^[Nn]') {
             Write-Host "Aborted." -ForegroundColor DarkGray
-            if ($selectedNames.Count -gt 1) { continue } else { exit 0 }
+            if ($selectedNames.Count -gt 1) { continue } else { return }
         }
         Write-Host ""
         Write-Host "The rest of the teardown is non-interactive." -ForegroundColor Green

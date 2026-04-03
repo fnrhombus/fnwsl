@@ -34,8 +34,7 @@ $ErrorActionPreference = "Stop"
 function Assert-ExitCode {
     param([string]$Message)
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: $Message (exit code $LASTEXITCODE)" -ForegroundColor Red
-        exit 1
+        throw "ERROR: $Message (exit code $LASTEXITCODE)"
     }
 }
 
@@ -98,7 +97,7 @@ function Show-CheckboxList {
 # --- Ensure running as admin ---
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "ERROR: Run this script from an elevated PowerShell." -ForegroundColor Red
-    exit 1
+    return
 }
 
 Write-Host "=== fnwsl Windows setup ===" -ForegroundColor Cyan
@@ -115,14 +114,14 @@ if (Get-Command wsl.exe -ErrorAction SilentlyContinue) {
     $existingDistros = @((wsl -l -q 2>$null) -join "`n" -replace "`0","" -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
     if ($WslName -in $existingDistros) {
         Write-Host "ERROR: A WSL distro named '$WslName' already exists." -ForegroundColor Red
-        exit 1
+        return
     }
 }
 if (Test-Path "$env:USERPROFILE\.fnwsl") {
     $existing = Get-Content "$env:USERPROFILE\.fnwsl" -Raw | ConvertFrom-Json
     if ($existing.instances -and ($existing.instances.PSObject.Properties.Name -contains $WslName)) {
         Write-Host "ERROR: '$WslName' already exists in the fnwsl tracker." -ForegroundColor Red
-        exit 1
+        return
     }
 }
 
@@ -130,7 +129,7 @@ if (-not $WslUsername) {
     $WslUsername = Read-Host "WSL username"
     if (-not $WslUsername) {
         Write-Host "ERROR: Username is required." -ForegroundColor Red
-        exit 1
+        return
     }
 }
 if (-not $Passphrase) {
@@ -138,7 +137,7 @@ if (-not $Passphrase) {
     $Passphrase = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass))
     if (-not $Passphrase) {
         Write-Host "ERROR: Passphrase is required." -ForegroundColor Red
-        exit 1
+        return
     }
 }
 if ($null -eq $SetDefault) {
@@ -319,7 +318,7 @@ if (-not $wslInstalled) {
     Write-Host ""
     Write-Host "WSL installed. A REBOOT is required before continuing." -ForegroundColor Red
     Write-Host "After reboot, run this script again." -ForegroundColor Red
-    exit 0
+    return
 }
 
 # --- Ensure Ubuntu is installed ---
