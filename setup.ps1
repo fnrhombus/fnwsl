@@ -373,14 +373,14 @@ if (Test-Path $wtSettingsPath) {
 # --- Verify Windows-side setup ---
 Write-Host ""
 Write-Host "Verifying setup..." -ForegroundColor Yellow
-$verifyFail = $false
+$verifyFailures = @()
 
 function Verify($label, $check) {
     if (& $check) {
         Write-Host "  OK    $label" -ForegroundColor Green
     } else {
         Write-Host "  FAIL  $label" -ForegroundColor Red
-        $script:verifyFail = $true
+        $script:verifyFailures += $label
     }
 }
 
@@ -416,9 +416,12 @@ Verify "Terminal font configured" {
 # usbipd
 Verify "usbipd-win installed" { [bool](Get-Command usbipd -ErrorAction SilentlyContinue) }
 
-if ($verifyFail) {
+if ($verifyFailures.Count -gt 0) {
     Write-Host ""
-    Write-Host "WARNING: Some checks failed. Review the output above." -ForegroundColor Red
+    Write-Host "WARNING: $($verifyFailures.Count) check(s) failed:" -ForegroundColor Red
+    foreach ($f in $verifyFailures) {
+        Write-Host "  - $f" -ForegroundColor Red
+    }
 }
 
 # --- Done ---

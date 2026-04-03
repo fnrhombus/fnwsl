@@ -211,7 +211,7 @@ fi
 # --- Verify installation ---
 echo ""
 echo "Verifying installation..."
-VERIFY_FAIL=0
+VERIFY_FAILURES=()
 
 verify() {
   local label="$1"
@@ -220,7 +220,7 @@ verify() {
     echo "  OK  $label"
   else
     echo "  FAIL  $label"
-    VERIFY_FAIL=1
+    VERIFY_FAILURES+=("$label")
   fi
 }
 
@@ -262,9 +262,12 @@ verify "wsl.conf MTU boot cmd" "grep -q 'mtu 1350' /etc/wsl.conf"
 # udev rules
 verify "udev USB serial rules" "[[ -f /etc/udev/rules.d/99-usb-serial.rules ]]"
 
-if [[ $VERIFY_FAIL -ne 0 ]]; then
+if [[ ${#VERIFY_FAILURES[@]} -gt 0 ]]; then
   echo ""
-  echo "WARNING: Some checks failed. Review the output above." >&2
+  echo "WARNING: ${#VERIFY_FAILURES[@]} check(s) failed:" >&2
+  for f in "${VERIFY_FAILURES[@]}"; do
+    echo "  - $f" >&2
+  done
 fi
 
 echo ""
