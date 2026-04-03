@@ -18,10 +18,16 @@ My WSL2 dotfiles. Lean zsh setup, cherry-picked one feature at a time.
 
 ## Install
 
-From an elevated PowerShell — one-liner, no clone needed:
+From an elevated PowerShell:
 
 ```powershell
 irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | iex
+```
+
+Or from an elevated Command Prompt:
+
+```cmd
+pwsh -c "irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | iex"
 ```
 
 It will ask for your WSL name, username, and passphrase, then do everything else non-interactively.
