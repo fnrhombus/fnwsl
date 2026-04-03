@@ -73,11 +73,6 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
     exit 1
 }
 
-if ($Force -and -not $WslName) {
-    Write-Host "ERROR: -Force requires -WslName." -ForegroundColor Red
-    exit 1
-}
-
 Write-Host "=== fnwsl teardown ===" -ForegroundColor Cyan
 
 # --- Load tracker for instance picker ---
@@ -109,17 +104,23 @@ if ($WslName) {
         }
     }
 
-    if ($knownNames.Count -gt 0) {
+    if ($knownNames.Count -eq 0) {
+        Write-Host ""
+        Write-Host "No fnwsl instances found." -ForegroundColor DarkGray
+        exit 0
+    } elseif ($knownNames.Count -eq 1) {
+        $selectedNames = @($knownNames[0])
+        Write-Host ""
+        Write-Host "Found instance: $($knownNames[0])" -ForegroundColor Yellow
+    } elseif ($Force) {
+        Write-Host "ERROR: -Force requires -WslName when multiple instances exist." -ForegroundColor Red
+        exit 1
+    } else {
         $selectedNames = @(Show-CheckboxMenu -Title "Select instances to remove:" -Items $knownNames.ToArray())
         if ($selectedNames.Count -eq 0) {
             Write-Host "No instances selected." -ForegroundColor DarkGray
             exit 0
         }
-    } else {
-        $defaultWslName = "$($env:COMPUTERNAME.ToLower())-wsl"
-        $enteredName = Read-Host "WSL name to remove (default: $defaultWslName)"
-        if (-not $enteredName) { $enteredName = $defaultWslName }
-        $selectedNames = @($enteredName)
     }
 }
 
@@ -220,7 +221,7 @@ foreach ($WslName in $selectedNames) {
     # --- Confirmation ---
     Write-Host ""
     Write-Host "This will:" -ForegroundColor Yellow
-    Write-Host "  - Unregister the Ubuntu WSL distro (deletes all data inside it)"
+    Write-Host "  - Unregister '$WslName' WSL distro (deletes all data inside it)"
     Write-Host "  - Remove WSL/Ubuntu profiles from Windows Terminal"
 
     if ($KeepWslConfig) {
@@ -261,16 +262,16 @@ foreach ($WslName in $selectedNames) {
         Write-Host "The rest of the teardown is non-interactive." -ForegroundColor Green
     }
 
-    # --- Unregister Ubuntu distro ---
-    $distroOutput = (wsl -l -q 2>$null) -join "`n" -replace "`0",""
-    if ($distroOutput -match "Ubuntu") {
+    # --- Unregister WSL distro ---
+    $distroList = @((wsl -l -q 2>$null) -join "`n" -replace "`0","" -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    if ($WslName -in $distroList) {
         Write-Host ""
-        Write-Host "Unregistering Ubuntu WSL distro..." -ForegroundColor Yellow
-        wsl --unregister Ubuntu
+        Write-Host "Unregistering '$WslName' WSL distro..." -ForegroundColor Yellow
+        wsl --unregister "$WslName"
         Write-Host "  Done." -ForegroundColor Green
     } else {
         Write-Host ""
-        Write-Host "No Ubuntu distro found, skipping." -ForegroundColor DarkGray
+        Write-Host "No '$WslName' distro found, skipping." -ForegroundColor DarkGray
     }
 
     # --- Handle .wslconfig ---
@@ -390,8 +391,7 @@ foreach ($WslName in $selectedNames) {
         $settings = Get-Content $wtSettingsPath -Raw | ConvertFrom-Json
         $before = $settings.profiles.list.Count
         $settings.profiles.list = @($settings.profiles.list | Where-Object {
-            $_.source -notmatch "Ubuntu|Microsoft\.WSL|Windows\.Terminal\.Wsl" -and
-            $_.name -notmatch "Ubuntu|$([regex]::Escape($WslName))"
+            $_.name -ne $WslName
         })
         $removed = $before - $settings.profiles.list.Count
         if ($removed -gt 0) {
