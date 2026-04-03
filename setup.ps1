@@ -370,6 +370,57 @@ if (Test-Path $wtSettingsPath) {
     Write-Host "Windows Terminal settings not found - configure manually." -ForegroundColor DarkYellow
 }
 
+# --- Verify Windows-side setup ---
+Write-Host ""
+Write-Host "Verifying setup..." -ForegroundColor Yellow
+$verifyFail = $false
+
+function Verify($label, $check) {
+    if (& $check) {
+        Write-Host "  OK    $label" -ForegroundColor Green
+    } else {
+        Write-Host "  FAIL  $label" -ForegroundColor Red
+        $script:verifyFail = $true
+    }
+}
+
+# WSL distro exists and responds
+Verify "WSL distro '$WslName'" {
+    $distros = @((wsl -l -q 2>$null) -join "`n" -replace "`0","" -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $WslName -in $distros
+}
+Verify "Default user is '$WslUsername'" {
+    $user = (wsl -d $WslName -- whoami 2>$null) -replace "`0","" | ForEach-Object { $_.Trim() }
+    $user -eq $WslUsername
+}
+
+# Tracker
+Verify "Tracker has '$WslName'" {
+    if (Test-Path $fnwslTracker) {
+        $t = Get-Content $fnwslTracker -Raw | ConvertFrom-Json
+        $t.instances.PSObject.Properties.Name -contains $WslName
+    } else { $false }
+}
+
+# .wslconfig
+Verify ".wslconfig exists" { Test-Path "$env:USERPROFILE\.wslconfig" }
+
+# Windows Terminal font
+Verify "Terminal font configured" {
+    if (Test-Path $wtSettingsPath) {
+        $s = Get-Content $wtSettingsPath -Raw | ConvertFrom-Json
+        [bool]$s.profiles.defaults.font.face
+    } else { $false }
+}
+
+# usbipd
+Verify "usbipd-win installed" { [bool](Get-Command usbipd -ErrorAction SilentlyContinue) }
+
+if ($verifyFail) {
+    Write-Host ""
+    Write-Host "WARNING: Some checks failed. Review the output above." -ForegroundColor Red
+}
+
 # --- Done ---
 Write-Host ""
 Write-Host "=== Setup complete ===" -ForegroundColor Cyan

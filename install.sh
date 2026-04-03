@@ -208,6 +208,65 @@ EOF
   sudo usermod -aG dialout "$USER"
 fi
 
+# --- Verify installation ---
+echo ""
+echo "Verifying installation..."
+VERIFY_FAIL=0
+
+verify() {
+  local label="$1"
+  local check="$2"
+  if eval "$check" &>/dev/null; then
+    echo "  OK  $label"
+  else
+    echo "  FAIL  $label"
+    VERIFY_FAIL=1
+  fi
+}
+
+# Shell
+verify "zsh is default shell" "[[ \$(getent passwd \$USER | cut -d: -f7) == */zsh ]]"
+
+# Apt tools
+for cmd in zsh fzf bat fd rg eza lsd tmux stow jq btop keychain direnv tldr; do
+  # fd-find installs as fdfind, bat as batcat on some distros
+  case "$cmd" in
+    bat) verify "$cmd" "command -v bat || command -v batcat" ;;
+    fd)  verify "$cmd" "command -v fd || command -v fdfind" ;;
+    *)   verify "$cmd" "command -v $cmd" ;;
+  esac
+done
+
+# Mise and mise-managed tools
+verify "mise" "command -v mise || [[ -x ~/.local/bin/mise ]]"
+for tool in sd yq xh gh zoxide claude; do
+  verify "$tool (mise)" "~/.local/bin/mise which $tool"
+done
+
+# SSH
+verify "SSH key" "[[ -f ~/.ssh/id_ed25519 ]]"
+verify "SSH allowed_signers" "[[ -f ~/.ssh/allowed_signers ]]"
+verify "SSH config symlink" "[[ -L ~/.ssh/config ]]"
+
+# Dotfiles
+verify ".zshrc symlink" "[[ -L ~/.zshrc ]]"
+verify ".gitconfig symlink" "[[ -L ~/.gitconfig ]]"
+verify ".tmux.conf symlink" "[[ -L ~/.tmux.conf ]]"
+verify ".p10k.zsh" "[[ -f ~/.p10k.zsh ]]"
+
+# wsl.conf
+verify "wsl.conf hostname" "grep -q 'hostname=' /etc/wsl.conf"
+verify "wsl.conf systemd" "grep -q 'systemd=true' /etc/wsl.conf"
+verify "wsl.conf MTU boot cmd" "grep -q 'mtu 1350' /etc/wsl.conf"
+
+# udev rules
+verify "udev USB serial rules" "[[ -f /etc/udev/rules.d/99-usb-serial.rules ]]"
+
+if [[ $VERIFY_FAIL -ne 0 ]]; then
+  echo ""
+  echo "WARNING: Some checks failed. Review the output above." >&2
+fi
+
 echo ""
 echo "=== Setup complete ==="
 echo ""
