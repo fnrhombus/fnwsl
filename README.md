@@ -26,10 +26,10 @@ gsudo pwsh .\setup.ps1
 
 It will ask for your WSL name, username, and passphrase, then do everything else non-interactively.
 
-Or as a one-liner (download latest release and run, no clone needed):
+Or as a one-liner from an elevated PowerShell (no clone needed):
 
 ```powershell
-iwr https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 -OutFile $env:TEMP\fnwsl.ps1; Start-Process pwsh "-File $env:TEMP\fnwsl.ps1" -Verb RunAs
+irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | iex
 ```
 
 From inside an existing WSL instance:
