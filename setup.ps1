@@ -182,7 +182,10 @@ wsl --export Ubuntu "$exportPath"
 Assert-ExitCode "WSL export failed."
 wsl --unregister Ubuntu
 Assert-ExitCode "WSL unregister failed."
+wsl --shutdown
+Start-Sleep -Seconds 2
 $installPath = "$env:LOCALAPPDATA\fnwsl\$WslName"
+New-Item -ItemType Directory -Path (Split-Path $installPath) -Force | Out-Null
 wsl --import "$WslName" "$installPath" "$exportPath"
 Assert-ExitCode "WSL import failed."
 Remove-Item "$exportPath"
@@ -227,13 +230,13 @@ foreach ($key in $mergeSettings.Keys) {
 }
 
 # Load or create tracker
-$tracker = @{ wslconfigExisted = $wslconfigExisted; instances = @{} }
+$tracker = [PSCustomObject]@{ wslconfigExisted = $wslconfigExisted; instances = [PSCustomObject]@{} }
 if (Test-Path $fnwslTracker) {
     $tracker = Get-Content $fnwslTracker -Raw | ConvertFrom-Json
     # Preserve wslconfigExisted from first run
 }
 if (-not $tracker.instances) {
-    $tracker.instances = @{}
+    $tracker.instances = [PSCustomObject]@{}
 }
 
 # Record this instance
