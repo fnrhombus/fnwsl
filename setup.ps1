@@ -215,9 +215,7 @@ if ($WslEnv) {
     }
 
     if ($envItems.Count -gt 0) {
-        Write-Host ""
-        Write-Host "  (PATH is handled separately via appendWindowsPath in wsl.conf)" -ForegroundColor DarkGray
-        $confirmed = Show-CheckboxList -Items $envItems -Title "Forward Windows env vars to WSL via WSLENV:"
+        $confirmed = Show-CheckboxList -Items $envItems -Title "Forward Windows env vars to WSL via WSLENV: (PATH handled separately via wsl.conf)"
         if ($confirmed -ne $false) {
             $selected = $envItems | Where-Object { $_.Checked }
             $wslenvEntries = @()
