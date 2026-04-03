@@ -1,6 +1,6 @@
 # fnwsl
 
-My WSL2 dotfiles. Lean zsh setup, cherry-picked one feature at a time.
+Opinionated, batteries-included WSL2 setup. One command gets you a fully configured dev environment with zsh, modern CLI tools, SSH, git signing, and sensible defaults.
 
 ## What's included
 
