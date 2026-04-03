@@ -3,6 +3,7 @@
 ## Versioning
 - Semver (semver.org). Base version in `VERSION` file; build metadata derived from git.
 - In semver's terminology, "build" = git commit for this project.
+- Every release MUST bump the `VERSION` file according to semver rules. Patch for fixes, minor for features, major for breaking changes.
 
 ## Commits
 - Commit upon completion of every task. No exceptions.
