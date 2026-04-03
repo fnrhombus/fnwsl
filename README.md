@@ -33,12 +33,6 @@ iwr https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 -OutFi
 .\$env:TEMP\fnwsl.ps1 -WslUsername tom -Passphrase "mypass" -WslName "dev-wsl" -P10kWizard
 ```
 
-Or if you've already cloned this repo:
-
-```powershell
-.\setup.ps1 -WslUsername tom -Passphrase "mypass" -WslName "dev-wsl"
-```
-
 From inside an existing WSL instance:
 
 ```bash
