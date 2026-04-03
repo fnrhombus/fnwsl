@@ -136,7 +136,7 @@ if ($KeepWslConfig) {
     foreach ($key in $instanceData.wslconfig.PSObject.Properties.Name) {
         $fromVal = $instanceData.wslconfig.$key.from
         $fromDisplay = if ($null -ne $fromVal) { "restore to $fromVal" } else { "remove" }
-        Write-Host "  - .wslconfig $key: $fromDisplay (forced)"
+        Write-Host "  - .wslconfig ${key}: $fromDisplay (forced)"
     }
 } elseif ($rollbackDecisions.Count -gt 0) {
     foreach ($key in $rollbackDecisions.Keys) {
@@ -144,11 +144,11 @@ if ($KeepWslConfig) {
         if ($decision -eq "rollback") {
             $fromVal = $instanceData.wslconfig.$key.from
             $fromDisplay = if ($null -ne $fromVal) { "restore to $fromVal" } else { "remove" }
-            Write-Host "  - .wslconfig $key: $fromDisplay"
+            Write-Host "  - .wslconfig ${key}: $fromDisplay"
         } elseif ($decision -eq "keep") {
-            Write-Host "  - .wslconfig $key: keep current value" -ForegroundColor DarkGray
+            Write-Host "  - .wslconfig ${key}: keep current value" -ForegroundColor DarkGray
         } elseif ($decision -eq "propagate") {
-            Write-Host "  - .wslconfig $key: keep (needed by other fnwsl instance)" -ForegroundColor DarkGray
+            Write-Host "  - .wslconfig ${key}: keep (needed by other fnwsl instance)" -ForegroundColor DarkGray
         }
     }
 } else {
