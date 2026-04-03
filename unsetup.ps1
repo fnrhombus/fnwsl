@@ -390,8 +390,12 @@ foreach ($WslName in $selectedNames) {
     if (Test-Path $wtSettingsPath) {
         $settings = Get-Content $wtSettingsPath -Raw | ConvertFrom-Json
         $before = $settings.profiles.list.Count
+        $distroList = @((wsl -l -q 2>$null) -join "`n" -replace "`0","" -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
         $settings.profiles.list = @($settings.profiles.list | Where-Object {
-            $_.name -ne $WslName
+            if ($_.name -eq $WslName) { return $false }
+            # Remove orphaned WSL profiles (distro no longer exists)
+            if ($_.source -match "Microsoft\.WSL|Windows\.Terminal\.Wsl" -and $_.name -notin $distroList) { return $false }
+            return $true
         })
         $removed = $before - $settings.profiles.list.Count
         if ($removed -gt 0) {
