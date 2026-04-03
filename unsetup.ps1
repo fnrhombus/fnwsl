@@ -4,6 +4,9 @@
 #   .\unsetup.ps1 -WslName "metis-wsl"
 #   .\unsetup.ps1 -RemoveWslConfig    # force roll back .wslconfig even if other instances exist
 #   .\unsetup.ps1 -KeepWslConfig      # always keep .wslconfig unchanged
+#
+# Fully non-interactive:
+#   .\unsetup.ps1 -WslName "metis-wsl" -Force
 
 [CmdletBinding(DefaultParameterSetName = "Auto")]
 param(
@@ -11,7 +14,8 @@ param(
     [Parameter(ParameterSetName = "KeepConfig")]
     [switch]$KeepWslConfig,
     [Parameter(ParameterSetName = "RemoveConfig")]
-    [switch]$RemoveWslConfig
+    [switch]$RemoveWslConfig,
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -66,6 +70,11 @@ function Show-CheckboxMenu {
 # --- Ensure running as admin ---
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "ERROR: Run this script from an elevated PowerShell." -ForegroundColor Red
+    exit 1
+}
+
+if ($Force -and -not $WslName) {
+    Write-Host "ERROR: -Force requires -WslName." -ForegroundColor Red
     exit 1
 }
 
@@ -182,6 +191,8 @@ foreach ($WslName in $selectedNames) {
                 $rollbackDecisions[$key] = "propagate"
             } elseif ($currentVal -eq $toVal) {
                 $rollbackDecisions[$key] = "rollback"
+            } elseif ($Force) {
+                $rollbackDecisions[$key] = "rollback"
             } else {
                 $fromDisplay = if ($null -ne $fromVal) { $fromVal } else { "(not set)" }
                 $currentDisplay = if ($null -ne $currentVal) { $currentVal } else { "(not set)" }
@@ -239,15 +250,16 @@ foreach ($WslName in $selectedNames) {
         Write-Host "  - .wslconfig: no changes" -ForegroundColor DarkGray
     }
 
-    Write-Host ""
-    $confirm = Read-Host "Continue? (Y/n)"
-    if ($confirm -match '^[Nn]') {
-        Write-Host "Aborted." -ForegroundColor DarkGray
-        if ($selectedNames.Count -gt 1) { continue } else { exit 0 }
+    if (-not $Force) {
+        Write-Host ""
+        $confirm = Read-Host "Continue? (Y/n)"
+        if ($confirm -match '^[Nn]') {
+            Write-Host "Aborted." -ForegroundColor DarkGray
+            if ($selectedNames.Count -gt 1) { continue } else { exit 0 }
+        }
+        Write-Host ""
+        Write-Host "The rest of the teardown is non-interactive." -ForegroundColor Green
     }
-
-    Write-Host ""
-    Write-Host "The rest of the teardown is non-interactive." -ForegroundColor Green
 
     # --- Unregister Ubuntu distro ---
     $distroOutput = (wsl -l -q 2>$null) -join "`n" -replace "`0",""
