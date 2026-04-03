@@ -8,13 +8,17 @@
 # With custom WSL name (defaults to {hostname}-wsl):
 #   .\setup.ps1 -WslUsername tom -Passphrase "mypassphrase" -WslName "dev-wsl"
 #
+# Let Powerlevel10k wizard run instead of using default config:
+#   .\setup.ps1 -P10kWizard
+#
 # Or one-liner (download and run):
 #   iwr -Uri https://raw.githubusercontent.com/fnrhombus/fnwsl/main/setup.ps1 -OutFile $env:TEMP\fnwsl.ps1; & $env:TEMP\fnwsl.ps1 -WslUsername tom -Passphrase "mypassphrase"
 
 param(
     [string]$WslUsername,
     [string]$Passphrase,
-    [string]$WslName
+    [string]$WslName,
+    [switch]$P10kWizard
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,6 +45,23 @@ if (-not $WslName) {
     $WslName = Read-Host "WSL name (default: $defaultWslName)"
     if (-not $WslName) { $WslName = $defaultWslName }
 }
+
+# --- Validate WslName is not already in use ---
+if (Get-Command wsl.exe -ErrorAction SilentlyContinue) {
+    $existingDistros = @((wsl -l -q 2>$null) -join "`n" -replace "`0","" -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    if ($WslName -in $existingDistros) {
+        Write-Host "ERROR: A WSL distro named '$WslName' already exists." -ForegroundColor Red
+        exit 1
+    }
+}
+if (Test-Path "$env:USERPROFILE\.fnwsl") {
+    $existing = Get-Content "$env:USERPROFILE\.fnwsl" -Raw | ConvertFrom-Json
+    if ($existing.instances -and ($existing.instances.PSObject.Properties.Name -contains $WslName)) {
+        Write-Host "ERROR: '$WslName' already exists in the fnwsl tracker." -ForegroundColor Red
+        exit 1
+    }
+}
+
 if (-not $WslUsername) {
     $WslUsername = Read-Host "WSL username"
     if (-not $WslUsername) {
@@ -137,7 +158,7 @@ if (-not $wslInstalled) {
 $distroOutput = (wsl -l -q 2>$null) -join "`n" -replace "`0",""
 if ($distroOutput -match "Ubuntu") {
     Write-Host ""
-    Write-Host "Found existing Ubuntu instance. Re-running setup inside it." -ForegroundColor Yellow
+    Write-Host "Found existing Ubuntu instance. Will configure and rename to '$WslName'." -ForegroundColor Yellow
 } else {
     Write-Host ""
     Write-Host "Installing fresh Ubuntu instance..." -ForegroundColor Yellow
@@ -152,6 +173,20 @@ if ($distroOutput -match "Ubuntu") {
     Start-Sleep -Seconds 2
     Write-Host "  User '$WslUsername' created and set as default." -ForegroundColor Green
 }
+
+# --- Rename distro: export Ubuntu, import as $WslName ---
+Write-Host ""
+Write-Host "Renaming Ubuntu distro to '$WslName'..." -ForegroundColor Yellow
+$exportPath = "$env:TEMP\fnwsl-export.tar"
+wsl --export Ubuntu "$exportPath"
+Assert-ExitCode "WSL export failed."
+wsl --unregister Ubuntu
+Assert-ExitCode "WSL unregister failed."
+$installPath = "$env:LOCALAPPDATA\fnwsl\$WslName"
+wsl --import "$WslName" "$installPath" "$exportPath"
+Assert-ExitCode "WSL import failed."
+Remove-Item "$exportPath"
+Write-Host "  Distro is now '$WslName'." -ForegroundColor Green
 
 # --- Configure .wslconfig (mirrored networking, IPv6) ---
 $wslconfigPath = "$env:USERPROFILE\.wslconfig"
@@ -251,7 +286,8 @@ Start-Sleep -Seconds 2
 # --- Run fnwsl bootstrap inside WSL ---
 Write-Host ""
 Write-Host "Running fnwsl setup inside WSL..." -ForegroundColor Yellow
-wsl -d Ubuntu -- bash -c "curl -fsSL 'https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh' | bash -s -- '$Passphrase' '$WslName'"
+$p10kArg = if ($P10kWizard) { "1" } else { "" }
+wsl -d $WslName -- bash -c "curl -fsSL 'https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh' | bash -s -- '$Passphrase' '$WslName' '$p10kArg'"
 Assert-ExitCode "WSL-side setup failed."
 
 # --- Hyper-V firewall: allow inbound to WSL ---
@@ -290,10 +326,10 @@ if (Test-Path $wtSettingsPath) {
         $needsSave = $true
     }
 
-    # Rename/hide Ubuntu WSL profiles - keep first, hide duplicates
+    # Configure WSL profile - keep first, hide duplicates
     $foundPrimary = $false
     foreach ($profile in $settings.profiles.list) {
-        if ($profile.source -match "Ubuntu|Microsoft\.WSL" -or $profile.name -match "Ubuntu") {
+        if ($profile.name -eq $wslHostname -or $profile.source -match "Ubuntu|Microsoft\.WSL" -or $profile.name -match "Ubuntu") {
             if (-not $foundPrimary) {
                 # Keep the first one as the visible profile
                 $foundPrimary = $true
@@ -346,9 +382,9 @@ Write-Host "=== Setup complete ===" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor White
 Write-Host "  1. Open a new WSL terminal tab"
-Write-Host "  2. Powerlevel10k will prompt you to configure your prompt"
-Write-Host "  3. Run 'gh auth login' to authenticate with GitHub"
-Write-Host "  4. Verify git signing: git log --show-signature"
+Write-Host "  2. Run 'gh auth login' to authenticate with GitHub"
+Write-Host "  3. Verify git signing: git log --show-signature"
+Write-Host "  4. To reconfigure p10k prompt: p10k configure"
 Write-Host ""
 Write-Host "USB passthrough (when needed):" -ForegroundColor White
 Write-Host "  usbipd list                                         # find your device"
