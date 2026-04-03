@@ -19,6 +19,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Assert-ExitCode {
+    param([string]$Message)
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: $Message (exit code $LASTEXITCODE)" -ForegroundColor Red
+        exit 1
+    }
+}
+
 # --- Ensure running as admin ---
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "ERROR: Run this script from an elevated PowerShell." -ForegroundColor Red
@@ -118,6 +126,7 @@ if (-not $wslInstalled) {
     Write-Host ""
     Write-Host "Installing WSL..." -ForegroundColor Yellow
     wsl --install --distribution Ubuntu --no-launch
+    Assert-ExitCode "WSL installation failed."
     Write-Host ""
     Write-Host "WSL installed. A REBOOT is required before continuing." -ForegroundColor Red
     Write-Host "After reboot, run this script again." -ForegroundColor Red
@@ -133,10 +142,12 @@ if ($distroOutput -match "Ubuntu") {
     Write-Host ""
     Write-Host "Installing fresh Ubuntu instance..." -ForegroundColor Yellow
     wsl --install --distribution Ubuntu --no-launch
+    Assert-ExitCode "Ubuntu installation failed. Check your network connection and try again."
 
     # --- Create WSL user (non-interactive) ---
     Write-Host "Creating WSL user '$WslUsername'..." -ForegroundColor Yellow
     wsl -d Ubuntu -- bash -c "useradd -m -s /bin/bash -G sudo '$WslUsername' && echo '${WslUsername}:${Passphrase}' | chpasswd && echo '${WslUsername} ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/${WslUsername} && chmod 440 /etc/sudoers.d/${WslUsername} && echo -e '[user]\ndefault=${WslUsername}' >> /etc/wsl.conf"
+    Assert-ExitCode "WSL user creation failed."
     wsl --shutdown
     Start-Sleep -Seconds 2
     Write-Host "  User '$WslUsername' created and set as default." -ForegroundColor Green
@@ -241,6 +252,7 @@ Start-Sleep -Seconds 2
 Write-Host ""
 Write-Host "Running fnwsl setup inside WSL..." -ForegroundColor Yellow
 wsl -d Ubuntu -- bash -c "curl -fsSL 'https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh' | bash -s -- '$Passphrase' '$WslName'"
+Assert-ExitCode "WSL-side setup failed."
 
 # --- Hyper-V firewall: allow inbound to WSL ---
 Write-Host ""
