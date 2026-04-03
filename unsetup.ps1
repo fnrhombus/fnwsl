@@ -444,10 +444,20 @@ foreach ($WslName in $selectedNames) {
             if ($_.source -match "Microsoft\.WSL|Windows\.Terminal\.Wsl" -and $_.name -notin $distroList) { return $false }
             return $true
         })
+        # Unhide auto-detected WSL profiles we hid during setup (only on last instance)
+        $unhidden = 0
+        if ($isLastInstance) {
+            foreach ($profile in $settings.profiles.list) {
+                if ($profile.source -match "Microsoft\.WSL|Windows\.Terminal\.Wsl" -and $profile.hidden) {
+                    $profile.hidden = $false
+                    $unhidden++
+                }
+            }
+        }
         $removed = $before - $settings.profiles.list.Count
-        if ($removed -gt 0) {
+        if ($removed -gt 0 -or $unhidden -gt 0) {
             Write-Host ""
-            Write-Host "Removing $removed WSL profile(s) from Windows Terminal..." -ForegroundColor Yellow
+            Write-Host "Updating Windows Terminal profiles (removed $removed, unhidden $unhidden)..." -ForegroundColor Yellow
             $settings | ConvertTo-Json -Depth 10 | Set-Content $wtSettingsPath -Encoding UTF8
             Write-Host "  Done." -ForegroundColor Green
         } else {

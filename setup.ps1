@@ -512,37 +512,32 @@ if (Test-Path $wtSettingsPath) {
         $needsSave = $true
     }
 
-    # Configure WSL profile - keep first, hide duplicates
-    $foundPrimary = $false
+    # Hide auto-detected WSL/Ubuntu profiles (we create our own explicit one)
     foreach ($profile in $settings.profiles.list) {
-        if ($profile.name -eq $wslHostname -or $profile.source -match "Ubuntu|Microsoft\.WSL" -or $profile.name -match "Ubuntu") {
-            if (-not $foundPrimary) {
-                # Keep the first one as the visible profile
-                $foundPrimary = $true
-                if ($profile.name -ne $wslHostname) {
-                    $profile.name = $wslHostname
-                    $needsSave = $true
-                }
-                if ($profile.hidden) {
-                    $profile.hidden = $false
-                    $needsSave = $true
-                }
-            } else {
-                # Hide duplicates
-                $profile.name = $wslHostname
-                if (-not $profile.hidden) {
-                    $profile.hidden = $true
-                    $needsSave = $true
-                }
+        if ($profile.source -match "Microsoft\.WSL|Windows\.Terminal\.Wsl" -or $profile.name -match "Ubuntu") {
+            if (-not $profile.hidden) {
+                $profile.hidden = $true
+                $needsSave = $true
             }
         }
     }
 
-    # No explicit profile needed — Terminal auto-detects WSL distros
+    # Ensure our explicit profile exists
+    $ourProfile = $settings.profiles.list | Where-Object { $_.name -eq $wslHostname -and -not $_.source } | Select-Object -First 1
+    if (-not $ourProfile) {
+        $newProfile = [PSCustomObject]@{
+            guid        = "{$([guid]::NewGuid().ToString())}"
+            name        = $wslHostname
+            commandline = "wsl.exe -d $wslHostname"
+            hidden      = $false
+        }
+        $settings.profiles.list = @($settings.profiles.list) + @($newProfile)
+        $needsSave = $true
+    }
 
     if ($needsSave) {
         Write-Host ""
-        Write-Host "Configuring Windows Terminal (font + renaming WSL profile to '$wslHostname')..." -ForegroundColor Yellow
+        Write-Host "Configuring Windows Terminal (font + WSL profile '$wslHostname')..." -ForegroundColor Yellow
         $settings | ConvertTo-Json -Depth 10 | Set-Content $wtSettingsPath -Encoding UTF8
     } else {
         Write-Host ""
