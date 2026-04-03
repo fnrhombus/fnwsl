@@ -418,6 +418,10 @@ if (Test-Path $fnwslTracker) {
 if (-not $tracker.instances) {
     $tracker.instances = [PSCustomObject]@{}
 }
+# Record pre-fnwsl WSLENV on first install only
+if (-not ($tracker.PSObject.Properties.Name -contains 'previousWslenv')) {
+    $tracker | Add-Member -NotePropertyName 'previousWslenv' -NotePropertyValue $currentWslenv -Force
+}
 
 # Record this instance
 $instanceRecord = @{

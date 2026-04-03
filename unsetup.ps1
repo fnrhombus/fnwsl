@@ -231,6 +231,13 @@ foreach ($WslName in $selectedNames) {
             Write-Host "  - Restore default WSL distro to '$($instanceData.previousDefault)'"
         }
     }
+    if ($isLastInstance -and $tracker -and ($tracker.PSObject.Properties.Name -contains 'previousWslenv')) {
+        if ($tracker.previousWslenv) {
+            Write-Host "  - Restore WSLENV to pre-fnwsl value"
+        } else {
+            Write-Host "  - Remove WSLENV (was not set before fnwsl)"
+        }
+    }
 
     if ($KeepWslConfig) {
         Write-Host "  - .wslconfig: keep unchanged (-KeepWslConfig)" -ForegroundColor DarkGray
@@ -398,6 +405,20 @@ foreach ($WslName in $selectedNames) {
                     }
                 }
             }
+        }
+    }
+
+    # --- Restore WSLENV on last instance removal ---
+    if ($isLastInstance -and $tracker -and ($tracker.PSObject.Properties.Name -contains 'previousWslenv')) {
+        $prevWslenv = $tracker.previousWslenv
+        if ($prevWslenv) {
+            [Environment]::SetEnvironmentVariable('WSLENV', $prevWslenv, 'User')
+            Write-Host ""
+            Write-Host "Restored WSLENV to pre-fnwsl value." -ForegroundColor Green
+        } else {
+            [Environment]::SetEnvironmentVariable('WSLENV', $null, 'User')
+            Write-Host ""
+            Write-Host "Removed WSLENV (was not set before fnwsl)." -ForegroundColor Green
         }
     }
 
