@@ -355,16 +355,7 @@ if (Test-Path $wtSettingsPath) {
         }
     }
 
-    # If no WSL profile was found, add one explicitly (Terminal hasn't auto-detected yet)
-    if (-not $foundPrimary) {
-        $wslProfile = @{
-            name = $wslHostname
-            source = "Windows.Terminal.Wsl"
-            hidden = $false
-        }
-        $settings.profiles.list += $wslProfile
-        $needsSave = $true
-    }
+    # No explicit profile needed — Terminal auto-detects WSL distros
 
     if ($needsSave) {
         Write-Host ""
