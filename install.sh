@@ -188,15 +188,22 @@ else
 #!/bin/bash
 # fnwsl: one-time GitHub auth + SSH key registration (self-deleting)
 if [ -t 0 ] && command -v gh &>/dev/null; then
-  echo ""
-  echo "=== fnwsl: GitHub authentication ==="
-  echo "Authenticate with GitHub to register your SSH key for git signing."
-  echo ""
-  if gh auth login; then
+  if gh auth status &>/dev/null; then
+    # Token already available (e.g. via WSLENV) — just register keys
     gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) - WSL" --type authentication 2>/dev/null || true
     gh ssh-key add ~/.ssh/id_ed25519.pub --type signing 2>/dev/null || true
+    echo "fnwsl: SSH key registered with GitHub."
+  else
     echo ""
-    echo "SSH key registered with GitHub."
+    echo "=== fnwsl: GitHub authentication ==="
+    echo "Authenticate with GitHub to register your SSH key for git signing."
+    echo ""
+    if gh auth login; then
+      gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) - WSL" --type authentication 2>/dev/null || true
+      gh ssh-key add ~/.ssh/id_ed25519.pub --type signing 2>/dev/null || true
+      echo ""
+      echo "SSH key registered with GitHub."
+    fi
   fi
   sudo rm -f /etc/profile.d/fnwsl-gh-setup.sh
 fi

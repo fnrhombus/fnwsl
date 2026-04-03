@@ -11,6 +11,9 @@
 # Let Powerlevel10k wizard run instead of using default config:
 #   .\setup.ps1 -P10kWizard
 #
+# Forward specific Windows env vars to WSL (non-interactive):
+#   .\setup.ps1 -WslUsername tom -Passphrase "mypassphrase" -WslEnv GH_TOKEN,GOPATH
+#
 # Or one-liner (from elevated PowerShell):
 #   irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | iex
 
@@ -18,7 +21,8 @@ param(
     [string]$WslUsername,
     [string]$Passphrase,
     [string]$WslName,
-    [switch]$P10kWizard
+    [switch]$P10kWizard,
+    [string[]]$WslEnv
 )
 
 $ErrorActionPreference = "Stop"
@@ -28,6 +32,62 @@ function Assert-ExitCode {
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: $Message (exit code $LASTEXITCODE)" -ForegroundColor Red
         exit 1
+    }
+}
+
+function Show-CheckboxList {
+    param(
+        [Parameter(Mandatory)][array]$Items,
+        [string]$Title = "Select items"
+    )
+    if ($Items.Count -eq 0) { return }
+
+    $cursor = 0
+    $offset = 0
+    $pageSize = [Math]::Min($Items.Count, [Console]::WindowHeight - 8)
+    [Console]::CursorVisible = $false
+    Write-Host ""
+    Write-Host $Title -ForegroundColor Cyan
+    Write-Host "  [Space] toggle  [A] all  [N] none  [Enter] confirm  [Esc] skip" -ForegroundColor DarkGray
+    Write-Host ""
+    $listTop = [Console]::CursorTop
+
+    try {
+        while ($true) {
+            [Console]::SetCursorPosition(0, $listTop)
+            $end = [Math]::Min($offset + $pageSize, $Items.Count)
+            for ($i = $offset; $i -lt $end; $i++) {
+                $item = $Items[$i]
+                $check = if ($item.Checked) { "x" } else { " " }
+                $arrow = if ($i -eq $cursor) { ">" } else { " " }
+                $val = $item.Value
+                if ($val.Length -gt 40) { $val = $val.Substring(0, 37) + "..." }
+                $line = " $arrow [$check] $($item.Name) = $val"
+                $line = $line.PadRight([Console]::WindowWidth - 1)
+                if ($i -eq $cursor) {
+                    Write-Host $line -ForegroundColor Yellow
+                } else {
+                    Write-Host $line
+                }
+            }
+            if ($Items.Count -gt $pageSize) {
+                $scrollHint = "  ($($offset + 1)-$end of $($Items.Count))"
+                Write-Host $scrollHint.PadRight([Console]::WindowWidth - 1) -ForegroundColor DarkGray
+            }
+
+            $key = [Console]::ReadKey($true)
+            switch ($key.Key) {
+                'UpArrow'   { if ($cursor -gt 0) { $cursor--; if ($cursor -lt $offset) { $offset = $cursor } } }
+                'DownArrow' { if ($cursor -lt $Items.Count - 1) { $cursor++; if ($cursor -ge $offset + $pageSize) { $offset++ } } }
+                'Spacebar'  { $Items[$cursor].Checked = -not $Items[$cursor].Checked }
+                'A'         { $Items | ForEach-Object { $_.Checked = $true } }
+                'N'         { $Items | ForEach-Object { $_.Checked = $false } }
+                'Escape'    { return $false }
+                'Enter'     { return $true }
+            }
+        }
+    } finally {
+        [Console]::CursorVisible = $true
     }
 }
 
@@ -82,24 +142,99 @@ Write-Host "  WSL name:   $WslName" -ForegroundColor DarkGray
 Write-Host "  Username:   $WslUsername" -ForegroundColor DarkGray
 Write-Host "  Passphrase: ****" -ForegroundColor DarkGray
 
-# --- Detect GitHub token (for SSH key registration inside WSL) ---
-$ghToken = $env:GH_TOKEN
-if (-not $ghToken) { $ghToken = $env:GITHUB_TOKEN }
-if (-not $ghToken -and (Get-Command gh -ErrorAction SilentlyContinue)) {
-    $ghToken = gh auth token 2>$null
-    if ($LASTEXITCODE -ne 0) { $ghToken = $null }
+
+# --- Forward Windows environment variables to WSL (WSLENV) ---
+$skipVars = @(
+    'ALLUSERSPROFILE','APPDATA','CLIENTNAME','COMMONPROGRAMFILES','COMMONPROGRAMFILES(X86)',
+    'COMPUTERNAME','COMSPEC','DRIVERDATA','HOMEDRIVE','HOMEPATH','LOCALAPPDATA',
+    'LOGONSERVER','NUMBER_OF_PROCESSORS','OS','PATHEXT','PATH','PROCESSOR_ARCHITECTURE',
+    'PROCESSOR_IDENTIFIER','PROCESSOR_LEVEL','PROCESSOR_REVISION','PROGRAMDATA',
+    'PROGRAMFILES','PROGRAMFILES(X86)','PSMODULEPATH','PUBLIC','SESSIONNAME',
+    'SYSTEMDRIVE','SYSTEMROOT','TEMP','TMP','USERDOMAIN','USERDOMAIN_ROAMINGPROFILE',
+    'USERNAME','USERPROFILE','WINDIR','WSLENV','TERM_PROGRAM','TERM_PROGRAM_VERSION',
+    'PROMPT','PSEXECUTIONPOLICYPREFERENCE','__COMPAT_LAYER'
+)
+
+# Parse existing WSLENV (preserve flags like /p, /u, /l)
+$currentWslenv = [Environment]::GetEnvironmentVariable('WSLENV', 'User')
+$existingFlags = @{}
+$existingVars = @()
+if ($currentWslenv) {
+    foreach ($entry in $currentWslenv -split ':') {
+        if (-not $entry) { continue }
+        $parts = $entry -split '/', 2
+        $existingVars += $parts[0]
+        $existingFlags[$parts[0]] = if ($parts.Count -gt 1) { "/$($parts[1])" } else { "" }
+    }
 }
-if ($ghToken) {
-    # Verify the token actually works
-    $env:GH_TOKEN = $ghToken
-    gh auth status *>$null
-    if ($LASTEXITCODE -ne 0) { $ghToken = $null }
-    $env:GH_TOKEN = $null
-}
-if ($ghToken) {
-    Write-Host "  GitHub:     authenticated" -ForegroundColor DarkGray
+
+if ($WslEnv) {
+    # Non-interactive: use provided list, merge with existing
+    foreach ($var in $WslEnv) {
+        if ($var -notin $existingVars) { $existingVars += $var }
+    }
+    $wslenvEntries = @()
+    foreach ($var in $existingVars) {
+        $flags = if ($existingFlags.ContainsKey($var)) { $existingFlags[$var] } else { "" }
+        $wslenvEntries += "$var$flags"
+    }
+    $newWslenv = $wslenvEntries -join ':'
+    [Environment]::SetEnvironmentVariable('WSLENV', $newWslenv, 'User')
+    $env:WSLENV = $newWslenv
+    Write-Host "  WSLENV:     $($existingVars.Count) var(s) forwarded" -ForegroundColor DarkGray
+    if ('GH_TOKEN' -in $existingVars -and $env:GH_TOKEN -match '^github_pat_') {
+        Write-Host "  WARNING: GH_TOKEN is a fine-grained PAT — cross-repo PRs will not work from CLI." -ForegroundColor Yellow
+    }
 } else {
-    Write-Host "  GitHub:     not authenticated (will prompt on first WSL login)" -ForegroundColor DarkYellow
+    # Interactive: show checkbox list
+    $envItems = @()
+    [Environment]::GetEnvironmentVariables('Process').GetEnumerator() |
+        Where-Object { $_.Key -notin $skipVars } |
+        Sort-Object Key |
+        ForEach-Object {
+            $envItems += @{ Name = $_.Key; Value = $_.Value; Checked = $_.Key -in $existingVars }
+        }
+    # Include any WSLENV vars no longer in the environment
+    foreach ($var in $existingVars) {
+        if (-not ($envItems | Where-Object { $_.Name -eq $var })) {
+            $envItems += @{ Name = $var; Value = "(not set)"; Checked = $true }
+        }
+    }
+
+    if ($envItems.Count -gt 0) {
+        $confirmed = Show-CheckboxList -Items $envItems -Title "Forward Windows env vars to WSL via WSLENV:"
+        if ($confirmed -ne $false) {
+            $selected = $envItems | Where-Object { $_.Checked }
+            $wslenvEntries = @()
+            foreach ($item in $selected) {
+                $flags = if ($existingFlags.ContainsKey($item.Name)) { $existingFlags[$item.Name] } else { "" }
+                $wslenvEntries += "$($item.Name)$flags"
+            }
+            $newWslenv = $wslenvEntries -join ':'
+            if ($newWslenv) {
+                [Environment]::SetEnvironmentVariable('WSLENV', $newWslenv, 'User')
+                $env:WSLENV = $newWslenv
+                Write-Host "  WSLENV set: $($selected.Count) var(s)" -ForegroundColor Green
+                # Warn if forwarding a fine-grained PAT as GH_TOKEN
+                $ghItem = $selected | Where-Object { $_.Name -eq 'GH_TOKEN' }
+                if ($ghItem -and $ghItem.Value -match '^github_pat_') {
+                    Write-Host ""
+                    Write-Host "  WARNING: GH_TOKEN is a fine-grained PAT." -ForegroundColor Yellow
+                    Write-Host "  Fine-grained PATs are scoped to your own repos. Forwarding this" -ForegroundColor DarkGray
+                    Write-Host "  token will make it impossible to create PRs on other people's repos" -ForegroundColor DarkGray
+                    Write-Host "  from the CLI, even after running 'gh auth login' (the env var always" -ForegroundColor DarkGray
+                    Write-Host "  takes precedence over stored OAuth credentials)." -ForegroundColor DarkGray
+                    Write-Host "  Consider: uncheck GH_TOKEN and use 'gh auth login' inside WSL instead." -ForegroundColor DarkGray
+                }
+            } elseif ($currentWslenv) {
+                [Environment]::SetEnvironmentVariable('WSLENV', $null, 'User')
+                $env:WSLENV = $null
+                Write-Host "  WSLENV cleared" -ForegroundColor DarkGray
+            }
+        } else {
+            Write-Host "  WSLENV: skipped (unchanged)" -ForegroundColor DarkGray
+        }
+    }
 }
 
 # --- Check .wslconfig for conflicts ---
@@ -310,8 +445,7 @@ Start-Sleep -Seconds 2
 Write-Host ""
 Write-Host "Running fnwsl setup inside WSL..." -ForegroundColor Yellow
 $p10kArg = if ($P10kWizard) { "1" } else { "" }
-$ghExport = if ($ghToken) { "export GH_TOKEN='$ghToken'; " } else { "" }
-wsl -d $WslName -- bash -c "${ghExport}curl -fsSL 'https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh' | bash -s -- '$Passphrase' '$WslName' '$p10kArg'"
+wsl -d $WslName -- bash -c "curl -fsSL 'https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh' | bash -s -- '$Passphrase' '$WslName' '$p10kArg'"
 Assert-ExitCode "WSL-side setup failed."
 
 # --- Hyper-V firewall: allow inbound to WSL ---
@@ -425,6 +559,9 @@ Verify "Tracker has '$WslName'" {
 
 # .wslconfig
 Verify ".wslconfig exists" { Test-Path "$env:USERPROFILE\.wslconfig" }
+
+# WSLENV
+Verify "WSLENV configured" { [bool][Environment]::GetEnvironmentVariable('WSLENV', 'User') }
 
 # Windows Terminal font
 Verify "Terminal font configured" {
