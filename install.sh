@@ -3,6 +3,7 @@ set -e
 
 SSH_PASSPHRASE="${1:-}"
 WSL_NAME="${2:-}"
+P10K_WIZARD="${3:-}"
 
 echo "=== fnwsl setup ==="
 
@@ -169,6 +170,12 @@ if [[ -d /mnt/d/Users/Tom/.claude ]] && [[ ! -L ~/.claude ]]; then
   ln -s /mnt/d/Users/Tom/.claude ~/.claude
 fi
 
+# --- Powerlevel10k config (suppress wizard by default) ---
+if [[ -z "$P10K_WIZARD" ]]; then
+  ln -sf "$SCRIPT_DIR/config/p10k.zsh" ~/.p10k.zsh
+  echo "  Installed p10k config (use -P10kWizard to run the wizard instead)"
+fi
+
 # SSH config needs special handling (into ~/.ssh/)
 mkdir -p ~/.ssh
 chmod 700 ~/.ssh
@@ -239,9 +246,9 @@ echo "=== Setup complete ==="
 echo ""
 echo "Next steps:"
 echo "  1. Run 'wsl --shutdown' from Windows, then relaunch WSL"
-echo "  2. Powerlevel10k will prompt you to configure your prompt"
-echo "  3. If not logged into gh: run 'gh auth login'"
-echo "  4. Verify git signing: git log --show-signature"
+echo "  2. If not logged into gh: run 'gh auth login'"
+echo "  3. Verify git signing: git log --show-signature"
+echo "  4. To reconfigure p10k prompt: p10k configure"
 echo ""
 echo "Windows-side setup (run in elevated PowerShell):"
 echo "  5. Enable mirrored networking: create %UserProfile%\\.wslconfig with:"
