@@ -30,7 +30,7 @@ Or from an elevated Command Prompt:
 pwsh -c "irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | iex"
 ```
 
-Or from any shell with [gsudo](https://github.com/gerardog/gsudo):
+Or from PowerShell without elevating first, using [gsudo](https://github.com/gerardog/gsudo):
 
 ```powershell
 irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | gsudo pwsh -Command -
