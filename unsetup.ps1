@@ -240,8 +240,8 @@ foreach ($WslName in $selectedNames) {
     }
 
     Write-Host ""
-    $confirm = Read-Host "Continue? (y/N)"
-    if ($confirm -ne "y") {
+    $confirm = Read-Host "Continue? (Y/n)"
+    if ($confirm -match '^[Nn]') {
         Write-Host "Aborted." -ForegroundColor DarkGray
         if ($selectedNames.Count -gt 1) { continue } else { exit 0 }
     }
