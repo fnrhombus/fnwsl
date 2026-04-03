@@ -12,7 +12,7 @@
 #   .\setup.ps1 -P10kWizard
 #
 # Or one-liner (download and run):
-#   iwr -Uri https://raw.githubusercontent.com/fnrhombus/fnwsl/main/setup.ps1 -OutFile $env:TEMP\fnwsl.ps1; & $env:TEMP\fnwsl.ps1 -WslUsername tom -Passphrase "mypassphrase"
+#   iwr https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 -OutFile $env:TEMP\fnwsl.ps1; gsudo pwsh $env:TEMP\fnwsl.ps1
 
 param(
     [string]$WslUsername,
