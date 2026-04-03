@@ -1,23 +1,59 @@
 # fnwsl Windows-side setup
-# Run from elevated PowerShell:
-#   .\install-windows.ps1 "mypassphrase"
+# Run from elevated PowerShell (interactive - prompts for missing args):
+#   .\setup.ps1
+#
+# Or fully non-interactive:
+#   .\setup.ps1 -WslUsername tom -Passphrase "mypassphrase"
+#
+# With custom WSL name (defaults to {hostname}-wsl):
+#   .\setup.ps1 -WslUsername tom -Passphrase "mypassphrase" -WslName "dev-wsl"
 #
 # Or one-liner (download and run):
-#   iwr -Uri https://raw.githubusercontent.com/fnrhombus/fnwsl/main/install-windows.ps1 -OutFile $env:TEMP\fnwsl.ps1; & $env:TEMP\fnwsl.ps1 "mypassphrase"
+#   iwr -Uri https://raw.githubusercontent.com/fnrhombus/fnwsl/main/setup.ps1 -OutFile $env:TEMP\fnwsl.ps1; & $env:TEMP\fnwsl.ps1 -WslUsername tom -Passphrase "mypassphrase"
 
 param(
-    [string]$SshPassphrase
+    [string]$WslUsername,
+    [string]$Passphrase,
+    [string]$WslName
 )
 
 $ErrorActionPreference = "Stop"
-
-Write-Host "=== fnwsl Windows setup ===" -ForegroundColor Cyan
 
 # --- Ensure running as admin ---
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "ERROR: Run this script from an elevated PowerShell." -ForegroundColor Red
     exit 1
 }
+
+Write-Host "=== fnwsl Windows setup ===" -ForegroundColor Cyan
+
+# --- Prompt for missing arguments ---
+$defaultWslName = "$($env:COMPUTERNAME.ToLower())-wsl"
+if (-not $WslName) {
+    $WslName = Read-Host "WSL name (default: $defaultWslName)"
+    if (-not $WslName) { $WslName = $defaultWslName }
+}
+if (-not $WslUsername) {
+    $WslUsername = Read-Host "WSL username"
+    if (-not $WslUsername) {
+        Write-Host "ERROR: Username is required." -ForegroundColor Red
+        exit 1
+    }
+}
+if (-not $Passphrase) {
+    $securePass = Read-Host "Passphrase (used for WSL password and SSH key)" -AsSecureString
+    $Passphrase = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass))
+    if (-not $Passphrase) {
+        Write-Host "ERROR: Passphrase is required." -ForegroundColor Red
+        exit 1
+    }
+}
+Write-Host ""
+Write-Host "  WSL name:   $WslName" -ForegroundColor DarkGray
+Write-Host "  Username:   $WslUsername" -ForegroundColor DarkGray
+Write-Host "  Passphrase: ****" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "The rest of the install is non-interactive. Feel free to grab a coffee." -ForegroundColor Green
 
 # --- Install WSL if not present ---
 $wslInstalled = Get-Command wsl.exe -ErrorAction SilentlyContinue
@@ -32,13 +68,21 @@ if (-not $wslInstalled) {
 }
 
 # --- Ensure Ubuntu is installed ---
-$distros = wsl -l -q 2>$null | Where-Object { $_ -match "Ubuntu" }
-if (-not $distros) {
+$distroOutput = (wsl -l -q 2>$null) -join "`n" -replace "`0",""
+if ($distroOutput -match "Ubuntu") {
     Write-Host ""
-    Write-Host "Installing Ubuntu..." -ForegroundColor Yellow
+    Write-Host "Found existing Ubuntu instance. Re-running setup inside it." -ForegroundColor Yellow
+} else {
+    Write-Host ""
+    Write-Host "Installing fresh Ubuntu instance..." -ForegroundColor Yellow
     wsl --install --distribution Ubuntu --no-launch
-    Write-Host "Ubuntu installed. Launch it once to create your user, then run this script again." -ForegroundColor Yellow
-    exit 0
+
+    # --- Create WSL user (non-interactive) ---
+    Write-Host "Creating WSL user '$WslUsername'..." -ForegroundColor Yellow
+    wsl -d Ubuntu -- bash -c "useradd -m -s /bin/bash -G sudo '$WslUsername' && echo '${WslUsername}:${Passphrase}' | chpasswd && echo '${WslUsername} ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/${WslUsername} && chmod 440 /etc/sudoers.d/${WslUsername} && echo -e '[user]\ndefault=${WslUsername}' >> /etc/wsl.conf"
+    wsl --shutdown
+    Start-Sleep -Seconds 2
+    Write-Host "  User '$WslUsername' created and set as default." -ForegroundColor Green
 }
 
 # --- Create .wslconfig (mirrored networking, IPv6) ---
@@ -66,11 +110,7 @@ Start-Sleep -Seconds 2
 # --- Run fnwsl bootstrap inside WSL ---
 Write-Host ""
 Write-Host "Running fnwsl setup inside WSL..." -ForegroundColor Yellow
-if ($SshPassphrase) {
-    wsl -d Ubuntu -- bash -c "curl -fsSL 'https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh' | bash -s -- '$SshPassphrase'"
-} else {
-    wsl -d Ubuntu -- bash -c "curl -fsSL https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh | bash"
-}
+wsl -d Ubuntu -- bash -c "curl -fsSL 'https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh' | bash -s -- '$Passphrase' '$WslName'"
 
 # --- Hyper-V firewall: allow inbound to WSL ---
 Write-Host ""
@@ -97,7 +137,7 @@ $wtSettingsPath = "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d
 if (Test-Path $wtSettingsPath) {
     $settings = Get-Content $wtSettingsPath -Raw | ConvertFrom-Json
     $needsSave = $false
-    $wslHostname = "$($env:COMPUTERNAME.ToLower())-wsl"
+    $wslHostname = $WslName
 
     # Set font on defaults if not already set
     if (-not $settings.profiles.defaults.font) {
@@ -108,7 +148,7 @@ if (Test-Path $wtSettingsPath) {
         $needsSave = $true
     }
 
-    # Rename/hide Ubuntu WSL profiles — keep first, hide duplicates
+    # Rename/hide Ubuntu WSL profiles - keep first, hide duplicates
     $foundPrimary = $false
     foreach ($profile in $settings.profiles.list) {
         if ($profile.source -match "Ubuntu|Microsoft\.WSL" -or $profile.name -match "Ubuntu") {
@@ -134,6 +174,17 @@ if (Test-Path $wtSettingsPath) {
         }
     }
 
+    # If no WSL profile was found, add one explicitly (Terminal hasn't auto-detected yet)
+    if (-not $foundPrimary) {
+        $wslProfile = @{
+            name = $wslHostname
+            source = "Windows.Terminal.Wsl"
+            hidden = $false
+        }
+        $settings.profiles.list += $wslProfile
+        $needsSave = $true
+    }
+
     if ($needsSave) {
         Write-Host ""
         Write-Host "Configuring Windows Terminal (font + renaming WSL profile to '$wslHostname')..." -ForegroundColor Yellow
@@ -144,7 +195,7 @@ if (Test-Path $wtSettingsPath) {
     }
 } else {
     Write-Host ""
-    Write-Host "Windows Terminal settings not found — configure manually." -ForegroundColor DarkYellow
+    Write-Host "Windows Terminal settings not found - configure manually." -ForegroundColor DarkYellow
 }
 
 # --- Done ---

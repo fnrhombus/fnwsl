@@ -18,13 +18,21 @@ My WSL2 dotfiles. Lean zsh setup, cherry-picked one feature at a time.
 
 ## Install
 
-From an **elevated PowerShell** (does everything — installs WSL, Ubuntu, all tools, networking):
+If you've already cloned this repo:
 
 ```powershell
-iwr -Uri https://raw.githubusercontent.com/fnrhombus/fnwsl/main/install-windows.ps1 -OutFile $env:TEMP\fnwsl.ps1; & $env:TEMP\fnwsl.ps1 "yourpassphrase"
+gsudo pwsh .\setup.ps1
 ```
 
-Or from inside an existing WSL instance:
+It will ask for your WSL name, username, and passphrase, then do everything else non-interactively.
+
+Or as a one-liner (download and run, no clone needed):
+
+```powershell
+iwr -Uri https://raw.githubusercontent.com/fnrhombus/fnwsl/main/setup.ps1 -OutFile $env:TEMP\fnwsl.ps1; gsudo pwsh $env:TEMP\fnwsl.ps1
+```
+
+From inside an existing WSL instance:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh | bash -s -- "yourpassphrase"

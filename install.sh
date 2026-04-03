@@ -2,6 +2,7 @@
 set -e
 
 SSH_PASSPHRASE="${1:-}"
+WSL_NAME="${2:-}"
 
 echo "=== fnwsl setup ==="
 
@@ -115,9 +116,13 @@ if ! command -v claude &>/dev/null; then
   fi
 fi
 
-# --- WSL hostname (windows-hostname + "-wsl") ---
-WIN_HOSTNAME=$(hostname.exe 2>/dev/null | tr -d '\r' | tr '[:upper:]' '[:lower:]')
-WSL_HOSTNAME="${WIN_HOSTNAME}-wsl"
+# --- WSL hostname and boot config ---
+if [[ -n "$WSL_NAME" ]]; then
+  WSL_HOSTNAME="$WSL_NAME"
+else
+  WIN_HOSTNAME=$(hostname.exe 2>/dev/null | tr -d '\r' | tr '[:upper:]' '[:lower:]')
+  WSL_HOSTNAME="${WIN_HOSTNAME}-wsl"
+fi
 if ! grep -q "hostname=" /etc/wsl.conf 2>/dev/null; then
   echo ""
   echo "Setting WSL hostname to ${WSL_HOSTNAME}..."
@@ -125,11 +130,17 @@ if ! grep -q "hostname=" /etc/wsl.conf 2>/dev/null; then
 
 [network]
 hostname=${WSL_HOSTNAME}
+EOF
+fi
+if ! grep -q "systemd=" /etc/wsl.conf 2>/dev/null; then
+  sudo tee -a /etc/wsl.conf > /dev/null <<EOF
 
 [boot]
 systemd=true
 command=/sbin/ip link set dev eth0 mtu 1350
 EOF
+elif ! grep -q "command=" /etc/wsl.conf 2>/dev/null; then
+  sudo sed -i '/\[boot\]/a command=/sbin/ip link set dev eth0 mtu 1350' /etc/wsl.conf
 fi
 
 # --- Stow dotfiles ---
@@ -185,11 +196,22 @@ fi
 if ! dpkg -s openssh-server &>/dev/null; then
   echo ""
   echo "Installing SSH server..."
-  sudo apt-get install -y openssh-server
+  sudo apt-get install -y openssh-server || true
+  # Ubuntu 24.04 uses socket activation - override the port in the systemd unit
+  sudo mkdir -p /etc/systemd/system/ssh.socket.d
+  sudo tee /etc/systemd/system/ssh.socket.d/override.conf > /dev/null <<'EOF'
+[Socket]
+ListenStream=
+ListenStream=2222
+EOF
+  # Also set in sshd_config for direct-start compatibility
   sudo sed -i 's/^#Port 22$/Port 2222/' /etc/ssh/sshd_config
   sudo sed -i 's/^Port 22$/Port 2222/' /etc/ssh/sshd_config
-  sudo systemctl enable ssh
-  sudo systemctl start ssh
+  if pidof systemd &>/dev/null; then
+    sudo systemctl daemon-reload
+    sudo systemctl enable ssh.socket
+    sudo systemctl restart ssh.socket
+  fi
 fi
 
 # --- USB serial udev rules (ESP32 / Pi Pico) ---
