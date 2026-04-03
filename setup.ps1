@@ -14,6 +14,9 @@
 # Forward specific Windows env vars to WSL (non-interactive):
 #   .\setup.ps1 -WslUsername tom -Passphrase "mypassphrase" -WslEnv GH_TOKEN,GOPATH
 #
+# Control default WSL distro:
+#   .\setup.ps1 -WslUsername tom -Passphrase "mypassphrase" -SetDefault $true
+#
 # Or one-liner (from elevated PowerShell):
 #   irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | iex
 
@@ -22,7 +25,8 @@ param(
     [string]$Passphrase,
     [string]$WslName,
     [switch]$P10kWizard,
-    [string[]]$WslEnv
+    [string[]]$WslEnv,
+    [Nullable[bool]]$SetDefault
 )
 
 $ErrorActionPreference = "Stop"
@@ -137,11 +141,20 @@ if (-not $Passphrase) {
         exit 1
     }
 }
+if ($null -eq $SetDefault) {
+    $currentDefault = ((wsl -l 2>$null) -join "`n" -replace "`0","" -split "`n" | Where-Object { $_ -match '\(Default\)' }) -replace '\s*\(Default\)','' | ForEach-Object { $_.Trim() }
+    if ($currentDefault -and $currentDefault -ne $WslName) {
+        $answer = Read-Host "Set '$WslName' as default WSL distro? Current default: '$currentDefault' (Y/n)"
+        $SetDefault = -not ($answer -match '^[Nn]')
+    } else {
+        $SetDefault = $true
+    }
+}
 Write-Host ""
 Write-Host "  WSL name:   $WslName" -ForegroundColor DarkGray
 Write-Host "  Username:   $WslUsername" -ForegroundColor DarkGray
 Write-Host "  Passphrase: ****" -ForegroundColor DarkGray
-
+Write-Host "  Default:    $SetDefault" -ForegroundColor DarkGray
 
 # --- Forward Windows environment variables to WSL (WSLENV) ---
 $skipVars = @(
@@ -346,6 +359,12 @@ Assert-ExitCode "WSL import failed."
 Remove-Item "$exportPath"
 Write-Host "  Distro is now '$WslName'." -ForegroundColor Green
 
+# --- Set as default WSL distro ---
+if ($SetDefault) {
+    wsl --set-default "$WslName"
+    Write-Host "  Set '$WslName' as default WSL distro." -ForegroundColor Green
+}
+
 # --- Configure .wslconfig (mirrored networking, IPv6) ---
 $wslconfigPath = "$env:USERPROFILE\.wslconfig"
 $fnwslTracker = "$env:USERPROFILE\.fnwsl"
@@ -547,6 +566,12 @@ Verify "WSL distro '$WslName'" {
 Verify "Default user is '$WslUsername'" {
     $user = (wsl -d $WslName -- whoami 2>$null) -replace "`0","" | ForEach-Object { $_.Trim() }
     $user -eq $WslUsername
+}
+if ($SetDefault) {
+    Verify "Default WSL distro is '$WslName'" {
+        $default = (wsl -l 2>$null) -join "`n" -replace "`0","" -split "`n" | Where-Object { $_ -match '\(Default\)' } | ForEach-Object { ($_ -replace '\s*\(Default\)','').Trim() }
+        $default -eq $WslName
+    }
 }
 
 # Tracker
