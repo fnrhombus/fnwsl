@@ -443,5 +443,5 @@ foreach ($WslName in $selectedNames) {
 Write-Host ""
 Write-Host "=== Teardown complete ===" -ForegroundColor Cyan
 Write-Host ""
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
-Write-Host "To reinstall: gsudo pwsh $scriptDir\setup.ps1" -ForegroundColor White
+Write-Host "To reinstall (from elevated PowerShell):" -ForegroundColor White
+Write-Host "  irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | iex" -ForegroundColor White
