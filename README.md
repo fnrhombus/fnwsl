@@ -30,7 +30,7 @@ Or from an elevated Command Prompt:
 pwsh -c "irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | iex"
 ```
 
-If you have [gsudo](https://github.com/gerardog/gsudo), you can skip the elevated shell: `gsudo pwsh -c "irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | iex"`
+If you have [gsudo](https://github.com/gerardog/gsudo): `irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | gsudo pwsh -Command -`
 
 It will ask for your WSL name, username, and passphrase, then do everything else non-interactively.
 
