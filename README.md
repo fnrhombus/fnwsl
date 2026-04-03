@@ -30,7 +30,11 @@ Or from an elevated Command Prompt:
 pwsh -c "irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | iex"
 ```
 
-If you have [gsudo](https://github.com/gerardog/gsudo): `irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | gsudo pwsh -Command -`
+Or from any shell with [gsudo](https://github.com/gerardog/gsudo):
+
+```powershell
+irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | gsudo pwsh -Command -
+```
 
 It will ask for your WSL name, username, and passphrase, then do everything else non-interactively.
 
