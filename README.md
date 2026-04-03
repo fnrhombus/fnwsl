@@ -18,18 +18,25 @@ My WSL2 dotfiles. Lean zsh setup, cherry-picked one feature at a time.
 
 ## Install
 
-If you've already cloned this repo:
+From an elevated PowerShell — one-liner, no clone needed:
 
 ```powershell
-gsudo pwsh .\setup.ps1
+irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | iex
 ```
 
 It will ask for your WSL name, username, and passphrase, then do everything else non-interactively.
 
-Or as a one-liner from an elevated PowerShell (no clone needed):
+To pass arguments, download and run as a script:
 
 ```powershell
-irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | iex
+iwr https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 -OutFile $env:TEMP\fnwsl.ps1
+.\$env:TEMP\fnwsl.ps1 -WslUsername tom -Passphrase "mypass" -WslName "dev-wsl" -P10kWizard
+```
+
+Or if you've already cloned this repo:
+
+```powershell
+.\setup.ps1 -WslUsername tom -Passphrase "mypass" -WslName "dev-wsl"
 ```
 
 From inside an existing WSL instance:
