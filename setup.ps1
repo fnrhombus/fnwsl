@@ -538,7 +538,22 @@ if (Test-Path $wtSettingsPath) {
         }
     }
 
-    # No explicit profile needed — Terminal auto-detects WSL distros
+    # No explicit WSL profile needed — Terminal auto-detects WSL distros
+
+    # Add elevated PowerShell profile if not already present
+    $sudoGuid = "{fnwsl-sudo-pwsh}"
+    $hasSudoProfile = $settings.profiles.list | Where-Object { $_.guid -eq $sudoGuid -or $_.name -eq "PowerShell (Admin)" }
+    if (-not $hasSudoProfile) {
+        $sudoProfile = @{
+            guid = $sudoGuid
+            name = "PowerShell (Admin)"
+            commandline = "sudo pwsh"
+            icon = "ms-appx:///ProfileIcons/{574e775e-4f2a-5b96-ac1e-a2962a402336}.png"
+            hidden = $false
+        }
+        $settings.profiles.list = @($settings.profiles.list) + $sudoProfile
+        $needsSave = $true
+    }
 
     if ($needsSave) {
         Write-Host ""
