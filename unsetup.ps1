@@ -413,4 +413,5 @@ foreach ($WslName in $selectedNames) {
 Write-Host ""
 Write-Host "=== Teardown complete ===" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "To reinstall: gsudo pwsh .\setup.ps1" -ForegroundColor White
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+Write-Host "To reinstall: gsudo pwsh $scriptDir\setup.ps1" -ForegroundColor White
