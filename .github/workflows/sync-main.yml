@@ -26,11 +26,11 @@ jobs:
           git rm -rf --ignore-unmatch CLAUDE.md .claude/
           git rm -rf --ignore-unmatch .claude
 
-          # Commit the removal (if anything changed) and push
+          # Commit removal if needed, then force push
+          # Force required: cleanup commit at tip is rewritten each sync
           if git diff --cached --quiet; then
-            # Nothing to remove, fast-forward main to dev
-            git push origin HEAD:refs/heads/main
+            git push origin HEAD:refs/heads/main --force
           else
-            git commit -m "sync from dev (clean)"
-            git push origin HEAD:refs/heads/main
+            git commit -m "sync from dev"
+            git push origin HEAD:refs/heads/main --force
           fi
