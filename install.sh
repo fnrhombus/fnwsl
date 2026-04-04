@@ -43,7 +43,11 @@ install_packages() {
     curl \
     wget
 }
-sudo apt-get update
+sudo apt-get update || {
+  echo "apt update failed, retrying after clean..."
+  sudo apt-get clean
+  sudo apt-get update
+}
 install_packages || {
   echo "Package install failed, retrying after clean update..."
   sudo apt-get clean
