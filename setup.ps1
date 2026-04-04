@@ -17,6 +17,9 @@
 # Control default WSL distro:
 #   .\setup.ps1 -WslUsername tom -Passphrase "mypassphrase" -SetDefault $true
 #
+# Fully unattended (all defaults, no prompts):
+#   .\setup.ps1 -Force
+#
 # Or one-liner (from elevated PowerShell):
 #   irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 | iex
 
@@ -26,7 +29,8 @@ param(
     [string]$WslName,
     [switch]$P10kWizard,
     [string[]]$WslEnv,
-    [Nullable[bool]]$SetDefault
+    [Nullable[bool]]$SetDefault,
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -102,11 +106,26 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 
 Write-Host "=== fnwsl Windows setup ===" -ForegroundColor Cyan
 
+# --- Check for Docker Desktop ---
+if (Get-Process "Docker Desktop" -ErrorAction SilentlyContinue) {
+    if (-not $Force) {
+        Write-Host ""
+        Write-Host "Docker Desktop is running. It may show WSL integration errors during setup." -ForegroundColor Yellow
+        Write-Host "Recommend closing Docker Desktop first, then reopening after setup completes." -ForegroundColor Yellow
+        Write-Host ""
+        Read-Host "Press Enter to continue anyway"
+    }
+}
+
 # --- Prompt for missing arguments ---
 $defaultWslName = "$($env:COMPUTERNAME.ToLower())-wsl"
 if (-not $WslName) {
-    $WslName = Read-Host "WSL name (default: $defaultWslName)"
-    if (-not $WslName) { $WslName = $defaultWslName }
+    if ($Force) {
+        $WslName = $defaultWslName
+    } else {
+        $WslName = Read-Host "WSL name (default: $defaultWslName)"
+        if (-not $WslName) { $WslName = $defaultWslName }
+    }
 }
 
 # --- Validate WslName is not already in use ---
@@ -125,27 +144,39 @@ if (Test-Path "$env:USERPROFILE\.fnwsl") {
     }
 }
 
+$defaultUsername = ($env:USERNAME ?? $env:USER).ToLower()
 if (-not $WslUsername) {
-    $defaultUsername = ($env:USERNAME ?? $env:USER).ToLower()
-    $WslUsername = Read-Host "WSL username (default: $defaultUsername)"
-    if (-not $WslUsername) { $WslUsername = $defaultUsername }
+    if ($Force) {
+        $WslUsername = $defaultUsername
+    } else {
+        $WslUsername = Read-Host "WSL username (default: $defaultUsername)"
+        if (-not $WslUsername) { $WslUsername = $defaultUsername }
+    }
 }
 # HERE BE DRAGONS: $Passphrase is untyped (not [string]) so we can distinguish
 # $null (not provided → prompt) from "" (explicitly blank → no password).
 # [string] would coerce $null to "" and we'd lose that distinction.
 # After this block, we force it to [string] so the rest of the script is safe.
 if ($null -eq $Passphrase) {
-    $securePass = Read-Host "Passphrase for WSL password and SSH key (blank for none)" -AsSecureString
-    $Passphrase = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass))
+    if ($Force) {
+        $Passphrase = ""
+    } else {
+        $securePass = Read-Host "Passphrase for WSL password and SSH key (blank for none)" -AsSecureString
+        $Passphrase = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass))
+    }
 }
 [string]$Passphrase = $Passphrase
 if ($null -eq $SetDefault) {
-    $currentDefault = ((wsl -l 2>$null) -join "`n" -replace "`0","" -split "`n" | Where-Object { $_ -match '\(Default\)' }) -replace '\s*\(Default\)','' | ForEach-Object { $_.Trim() }
-    if ($currentDefault -and $currentDefault -ne $WslName) {
-        $answer = Read-Host "Set '$WslName' as default WSL distro? Current default: '$currentDefault' (Y/n)"
-        $SetDefault = -not ($answer -match '^[Nn]')
-    } else {
+    if ($Force) {
         $SetDefault = $true
+    } else {
+        $currentDefault = ((wsl -l 2>$null) -join "`n" -replace "`0","" -split "`n" | Where-Object { $_ -match '\(Default\)' }) -replace '\s*\(Default\)','' | ForEach-Object { $_.Trim() }
+        if ($currentDefault -and $currentDefault -ne $WslName) {
+            $answer = Read-Host "Set '$WslName' as default WSL distro? Current default: '$currentDefault' (Y/n)"
+            $SetDefault = -not ($answer -match '^[Nn]')
+        } else {
+            $SetDefault = $true
+        }
     }
 }
 Write-Host ""
@@ -179,7 +210,7 @@ if ($currentWslenv) {
     }
 }
 
-if ($WslEnv) {
+if ($WslEnv -or $Force) {
     # Non-interactive: use provided list, merge with existing
     foreach ($var in $WslEnv) {
         if ($var -notin $existingVars) { $existingVars += $var }

@@ -75,6 +75,17 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 
 Write-Host "=== fnwsl teardown ===" -ForegroundColor Cyan
 
+# --- Check for Docker Desktop ---
+if (Get-Process "Docker Desktop" -ErrorAction SilentlyContinue) {
+    if (-not $Force) {
+        Write-Host ""
+        Write-Host "Docker Desktop is running. It may show WSL integration errors during teardown." -ForegroundColor Yellow
+        Write-Host "Recommend closing Docker Desktop first, then reopening after teardown completes." -ForegroundColor Yellow
+        Write-Host ""
+        Read-Host "Press Enter to continue anyway"
+    }
+}
+
 # --- Load tracker for instance picker ---
 $fnwslTracker = "$env:USERPROFILE\.fnwsl"
 $wslconfigPath = "$env:USERPROFILE\.wslconfig"
