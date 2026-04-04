@@ -265,26 +265,23 @@ if [[ -t 0 ]]; then
   if command -v bw &>/dev/null && ! bw login --check &>/dev/null; then
     echo ""
     echo "=== fnwsl: Bitwarden authentication ==="
-    echo "Log in to unlock SSH key passphrase management."
+    echo "Log in to Bitwarden to manage SSH key passphrase."
     echo ""
-    if bw login; then
-      echo ""
-      echo "Unlocking Bitwarden vault..."
-      BW_SESSION=$(bw unlock --raw 2>/dev/null)
-      if [[ -n "$BW_SESSION" ]]; then
-        export BW_SESSION
-        # Add SSH key now using Bitwarden passphrase
-        _bw_pass=$(bw get password "SSH Key" 2>/dev/null)
-        if [[ -n "$_bw_pass" ]]; then
-          _askpass=$(mktemp)
-          printf '#!/bin/sh\necho "%s"\n' "$_bw_pass" > "$_askpass"
-          chmod +x "$_askpass"
-          SSH_ASKPASS="$_askpass" SSH_ASKPASS_REQUIRE=force ssh-add ~/.ssh/id_ed25519 2>/dev/null
-          rm -f "$_askpass"
-          unset _bw_pass _askpass
-        fi
-        echo "fnwsl: Bitwarden unlocked. SSH key added."
+    # --raw logs in AND returns session key in one step (single password prompt)
+    BW_SESSION=$(bw login --raw 2>/dev/null)
+    if [[ -n "$BW_SESSION" ]]; then
+      export BW_SESSION
+      # Add SSH key using Bitwarden passphrase
+      _bw_pass=$(bw get password "SSH Key" 2>/dev/null)
+      if [[ -n "$_bw_pass" ]]; then
+        _askpass=$(mktemp)
+        printf '#!/bin/sh\necho "%s"\n' "$_bw_pass" > "$_askpass"
+        chmod +x "$_askpass"
+        SSH_ASKPASS="$_askpass" SSH_ASKPASS_REQUIRE=force ssh-add ~/.ssh/id_ed25519 2>/dev/null
+        rm -f "$_askpass"
+        unset _bw_pass _askpass
       fi
+      echo "fnwsl: Bitwarden unlocked. SSH key added."
     fi
   fi
 
