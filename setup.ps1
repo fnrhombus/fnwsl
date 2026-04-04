@@ -333,7 +333,8 @@ if ($distroOutput -match "Ubuntu") {
 
     # --- Create WSL user (non-interactive) ---
     Write-Host "Creating WSL user '$WslUsername'..." -ForegroundColor Yellow
-    wsl -d Ubuntu -- bash -c "useradd -m -s /bin/bash -G sudo '$WslUsername' && echo '${WslUsername}:${Passphrase}' | chpasswd && echo '${WslUsername} ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/${WslUsername} && chmod 440 /etc/sudoers.d/${WslUsername} && echo -e '[user]\ndefault=${WslUsername}' >> /etc/wsl.conf"
+    $setPassword = if ($Passphrase) { "echo '${WslUsername}:${Passphrase}' | chpasswd" } else { "passwd -d '$WslUsername'" }
+    wsl -d Ubuntu -- bash -c "useradd -m -s /bin/bash -G sudo '$WslUsername' && $setPassword && echo '${WslUsername} ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/${WslUsername} && chmod 440 /etc/sudoers.d/${WslUsername} && echo -e '[user]\ndefault=${WslUsername}' >> /etc/wsl.conf"
     Assert-ExitCode "WSL user creation failed."
     wsl --shutdown
     Start-Sleep -Seconds 2
