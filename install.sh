@@ -267,8 +267,9 @@ if [[ -t 0 ]]; then
     echo "=== fnwsl: Bitwarden authentication ==="
     echo "Log in to Bitwarden to manage SSH key passphrase."
     echo ""
-    # --raw logs in AND returns session key in one step (single password prompt)
-    BW_SESSION=$(bw login --raw 2>/dev/null)
+    if bw login; then
+      BW_SESSION=$(bw unlock 2>&1 | grep -oP 'export BW_SESSION="\K[^"]+')
+    fi
     if [[ -n "$BW_SESSION" ]]; then
       export BW_SESSION
       # Add SSH key using Bitwarden passphrase
