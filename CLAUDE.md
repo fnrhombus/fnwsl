@@ -13,3 +13,6 @@
 ## Branching
 - All work happens on `dev`. Never commit directly to `main`.
 - `main` is updated from `dev` via GitHub Action.
+
+## URLs
+- NEVER use `raw.githubusercontent.com`. Always use GitHub release asset URLs (`https://github.com/.../releases/latest/download/...`). The raw CDN caches aggressively and serves stale files.
