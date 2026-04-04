@@ -32,13 +32,32 @@ pwsh -c "irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.p
 
 It will ask for your WSL name, username, and passphrase, then do everything else non-interactively.
 
-**Note:** The prompt uses [Powerlevel10k](https://github.com/romkatv/powerlevel10k) with a Nerd Font. If your terminal shows broken/missing glyphs, install a Nerd Font (e.g. [CaskaydiaCove](https://github.com/ryanoasis/nerd-fonts/releases/latest)). If you use oh-my-posh on Windows, the fonts are already there.
-
-To pass arguments, download and run as a script:
+Fully unattended (all defaults, no prompts):
 
 ```powershell
-iwr https://github.com/fnrhombus/fnwsl/releases/latest/download/setup.ps1 -OutFile $env:TEMP\fnwsl.ps1
-.\$env:TEMP\fnwsl.ps1 -WslUsername tom -Passphrase "mypass" -WslName "dev-wsl" -P10kWizard
+irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup-forced.ps1 | iex
+```
+
+**Note:** The prompt uses [Powerlevel10k](https://github.com/romkatv/powerlevel10k) with a Nerd Font. If your terminal shows broken/missing glyphs, install a Nerd Font (e.g. [CaskaydiaCove](https://github.com/ryanoasis/nerd-fonts/releases/latest)). If you use oh-my-posh on Windows, the fonts are already there.
+
+### Setup arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `-WslName` | `{hostname}-wsl` | WSL distro name |
+| `-WslUsername` | Current OS username | Linux username |
+| `-Passphrase` | *(prompted)* | WSL password & SSH key passphrase (blank = none) |
+| `-SetDefault` | `$true` | Set as default WSL distro |
+| `-WslEnv` | *(prompted)* | Windows env vars to forward (e.g. `GH_TOKEN,GOPATH`) |
+| `-P10kWizard` | off | Run Powerlevel10k config wizard instead of using defaults |
+| `-Force` | off | Accept all defaults, skip all prompts |
+
+```powershell
+# Custom name and user
+.\setup.ps1 -WslUsername tom -Passphrase "mypass" -WslName "dev-wsl"
+
+# Forward env vars, no password
+.\setup.ps1 -WslUsername tom -Passphrase "" -WslEnv GH_TOKEN,GOPATH
 ```
 
 From inside an existing WSL instance:
@@ -56,11 +75,18 @@ From an elevated PowerShell:
 irm https://github.com/fnrhombus/fnwsl/releases/latest/download/unsetup.ps1 | iex
 ```
 
-Or fully non-interactive:
+### Unsetup arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `-WslName` | *(prompted)* | Instance to remove |
+| `-Force` | off | Skip all prompts (requires `-WslName` if multiple instances) |
+| `-KeepWslConfig` | off | Keep `.wslconfig` unchanged |
+| `-RemoveWslConfig` | off | Force remove `.wslconfig` even if other instances exist |
 
 ```powershell
-iwr https://github.com/fnrhombus/fnwsl/releases/latest/download/unsetup.ps1 -OutFile $env:TEMP\fnwsl-unsetup.ps1
-.\$env:TEMP\fnwsl-unsetup.ps1 -WslName "dev-wsl" -Force
+# Fully non-interactive
+.\unsetup.ps1 -WslName "dev-wsl" -Force
 ```
 
 ## Structure
