@@ -162,7 +162,8 @@ if [[ ! -f ~/.zgenom/init.zsh ]]; then
   # Extract and run just the zgenom plugin block from .zshrc
   # GIT_TEMPLATE_DIR="" suppresses WSL git template copy errors that break clones
   GIT_TEMPLATE_DIR="" zsh -c '
-    source "${HOME}/.zgenom/zgenom.zsh"
+    ZGEN_DIR="${HOME}/.zgenom"
+    source "${ZGEN_DIR}/zgenom.zsh"
     zgenom ohmyzsh
     zgenom ohmyzsh plugins/sudo
     zgenom ohmyzsh plugins/colored-man-pages
