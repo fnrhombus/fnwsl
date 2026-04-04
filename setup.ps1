@@ -130,13 +130,9 @@ if (-not $WslUsername) {
     $WslUsername = Read-Host "WSL username (default: $defaultUsername)"
     if (-not $WslUsername) { $WslUsername = $defaultUsername }
 }
-if (-not $Passphrase) {
-    $securePass = Read-Host "Passphrase (used for WSL password and SSH key)" -AsSecureString
+if (-not $PSBoundParameters.ContainsKey('Passphrase')) {
+    $securePass = Read-Host "Passphrase for WSL password and SSH key (blank for none)" -AsSecureString
     $Passphrase = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass))
-    if (-not $Passphrase) {
-        Write-Host "ERROR: Passphrase is required." -ForegroundColor Red
-        return
-    }
 }
 if ($null -eq $SetDefault) {
     $currentDefault = ((wsl -l 2>$null) -join "`n" -replace "`0","" -split "`n" | Where-Object { $_ -match '\(Default\)' }) -replace '\s*\(Default\)','' | ForEach-Object { $_.Trim() }
@@ -150,7 +146,7 @@ if ($null -eq $SetDefault) {
 Write-Host ""
 Write-Host "  WSL name:   $WslName" -ForegroundColor DarkGray
 Write-Host "  Username:   $WslUsername" -ForegroundColor DarkGray
-Write-Host "  Passphrase: ****" -ForegroundColor DarkGray
+Write-Host "  Passphrase: $(if ($Passphrase) { '****' } else { '(none)' })" -ForegroundColor DarkGray
 Write-Host "  Default:    $SetDefault" -ForegroundColor DarkGray
 
 # --- Forward Windows environment variables to WSL (WSLENV) ---

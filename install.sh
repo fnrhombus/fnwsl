@@ -61,11 +61,7 @@ fi
 if [[ ! -f ~/.ssh/id_ed25519 ]]; then
   echo ""
   echo "Generating SSH key..."
-  if [[ -n "$SSH_PASSPHRASE" ]]; then
-    ssh-keygen -t ed25519 -C "$(hostname)" -f ~/.ssh/id_ed25519 -N "$SSH_PASSPHRASE"
-  else
-    ssh-keygen -t ed25519 -C "$(hostname)" -f ~/.ssh/id_ed25519
-  fi
+  ssh-keygen -t ed25519 -C "$(hostname)" -f ~/.ssh/id_ed25519 -N "$SSH_PASSPHRASE"
 fi
 
 # --- Install mise (tool version manager) ---
