@@ -12,4 +12,4 @@ git clone -c core.autocrlf=input https://github.com/fnrhombus/fnwsl ~/fnwsl
 
 cd ~/fnwsl
 chmod +x install.sh
-bash -c "./install.sh $* < /dev/tty"
+bash -c './install.sh "$@" < /dev/tty' -- "$@"

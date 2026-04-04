@@ -153,10 +153,34 @@ stow --restow --target="$HOME" zsh
 stow --restow --target="$HOME" git
 stow --restow --target="$HOME" tmux
 
-# --- Pre-clone zgenom (avoids git template race on first zsh login) ---
-if [[ ! -d ~/.zgenom ]]; then
-  echo "Pre-cloning zgenom..."
-  git clone https://github.com/jandamm/zgenom.git ~/.zgenom
+# --- Pre-build zgenom plugin cache (avoids clone errors on first zsh login) ---
+if [[ ! -f ~/.zgenom/init.zsh ]]; then
+  echo "Pre-building zgenom plugin cache..."
+  if [[ ! -d ~/.zgenom ]]; then
+    git clone https://github.com/jandamm/zgenom.git ~/.zgenom
+  fi
+  # Extract and run just the zgenom plugin block from .zshrc
+  zsh -c '
+    source "${HOME}/.zgenom/zgenom.zsh"
+    zgenom ohmyzsh
+    zgenom ohmyzsh plugins/sudo
+    zgenom ohmyzsh plugins/colored-man-pages
+    zgenom ohmyzsh plugins/extract
+    zgenom ohmyzsh plugins/command-not-found
+    zgenom ohmyzsh plugins/docker
+    zgenom ohmyzsh plugins/docker-compose
+    zgenom ohmyzsh plugins/npm
+    zgenom ohmyzsh plugins/pip
+    zgenom ohmyzsh plugins/dotnet
+    zgenom load zdharma-continuum/fast-syntax-highlighting
+    zgenom load zsh-users/zsh-autosuggestions
+    zgenom load zsh-users/zsh-history-substring-search
+    zgenom load zsh-users/zsh-completions
+    zgenom load unixorn/fzf-zsh-plugin
+    zgenom load Aloxaf/fzf-tab
+    zgenom load romkatv/powerlevel10k powerlevel10k
+    zgenom save
+  '
 fi
 
 # --- Symlink Windows Claude settings (after stow to avoid path confusion) ---
@@ -221,11 +245,11 @@ else
   # Plant a self-deleting login script for first interactive session
   echo ""
   echo "No GitHub token found — deferring GitHub setup to first login."
-  sudo tee /etc/profile.d/fnwsl-gh-setup.sh > /dev/null <<'GHEOF'
-#!/bin/bash
+  mkdir -p ~/.zshrc.d
+  cat > ~/.zshrc.d/fnwsl-gh-setup.zsh <<'GHEOF'
 # fnwsl: one-time GitHub auth, git identity, and SSH key registration (self-deleting)
-if [ -t 0 ] && command -v gh &>/dev/null; then
-  configure_and_register() {
+if [[ -t 0 ]] && command -v gh &>/dev/null; then
+  _fnwsl_configure_and_register() {
     local gh_user gh_id gh_email
     gh_user=$(gh api user --jq '.login' 2>/dev/null) || return 1
     gh_id=$(gh api user --jq '.id' 2>/dev/null) || return 1
@@ -235,7 +259,7 @@ if [ -t 0 ] && command -v gh &>/dev/null; then
     name = ${gh_user}
     email = ${gh_email}
 GITEOF
-    if [ -f ~/.ssh/id_ed25519.pub ]; then
+    if [[ -f ~/.ssh/id_ed25519.pub ]]; then
       echo "${gh_email} $(cat ~/.ssh/id_ed25519.pub)" > ~/.ssh/allowed_signers
     fi
     gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) - WSL" --type authentication 2>/dev/null || true
@@ -245,17 +269,18 @@ GITEOF
   }
 
   if gh auth status &>/dev/null; then
-    configure_and_register
+    _fnwsl_configure_and_register
   else
     echo ""
     echo "=== fnwsl: GitHub authentication ==="
     echo "Authenticate with GitHub to register your SSH key and configure git identity."
     echo ""
     if gh auth login; then
-      configure_and_register
+      _fnwsl_configure_and_register
     fi
   fi
-  sudo rm -f /etc/profile.d/fnwsl-gh-setup.sh
+  unfunction _fnwsl_configure_and_register
+  rm -f ~/.zshrc.d/fnwsl-gh-setup.zsh
 fi
 GHEOF
 fi
