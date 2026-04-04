@@ -6,11 +6,14 @@ fi
 # --- Zgenom plugin manager ---
 ZGEN_DIR="${HOME}/.zgenom"
 if [[ ! -d "$ZGEN_DIR" ]]; then
-  git clone https://github.com/jandamm/zgenom.git "$ZGEN_DIR"
+  GIT_TEMPLATE_DIR="" git clone https://github.com/jandamm/zgenom.git "$ZGEN_DIR"
 fi
 source "${ZGEN_DIR}/zgenom.zsh"
 
 if ! zgenom saved; then
+  # Suppress WSL git template copy errors during plugin clones
+  export GIT_TEMPLATE_DIR=""
+
   # --- Plugins ---
   zgenom ohmyzsh                          # bootstrap oh-my-zsh (required before loading its plugins)
   zgenom ohmyzsh plugins/sudo             # Esc-Esc to prepend sudo
@@ -37,6 +40,7 @@ if ! zgenom saved; then
   zgenom load romkatv/powerlevel10k powerlevel10k         # prompt/theme
 
   zgenom save
+  unset GIT_TEMPLATE_DIR
 fi
 
 # --- History ---

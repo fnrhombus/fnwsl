@@ -8,7 +8,7 @@ fi
 
 # Always start fresh — avoids line-ending and merge conflicts
 rm -rf ~/fnwsl
-git clone -c core.autocrlf=input https://github.com/fnrhombus/fnwsl ~/fnwsl
+GIT_TEMPLATE_DIR="" git clone -c core.autocrlf=input https://github.com/fnrhombus/fnwsl ~/fnwsl
 
 cd ~/fnwsl
 chmod +x install.sh

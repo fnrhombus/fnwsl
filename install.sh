@@ -157,7 +157,7 @@ stow --restow --target="$HOME" tmux
 if [[ ! -f ~/.zgenom/init.zsh ]]; then
   echo "Pre-building zgenom plugin cache..."
   if [[ ! -d ~/.zgenom ]]; then
-    git clone https://github.com/jandamm/zgenom.git ~/.zgenom
+    GIT_TEMPLATE_DIR="" git clone https://github.com/jandamm/zgenom.git ~/.zgenom
   fi
   # Extract and run just the zgenom plugin block from .zshrc
   # GIT_TEMPLATE_DIR="" suppresses WSL git template copy errors that break clones
