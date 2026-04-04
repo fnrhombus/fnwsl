@@ -91,23 +91,21 @@ unset WIN_SYS
 typeset -aU path
 
 # --- SSH agent via keychain ---
-# If Bitwarden is unlocked, use it to supply the SSH passphrase automatically.
-# Otherwise, keychain prompts as usual (or skips if the key has no passphrase).
-if [[ -n "$BW_SESSION" ]] && command -v bw &>/dev/null; then
-  eval $(keychain --eval --quiet --nogui --noask ~/.ssh/id_ed25519)
-  if ! ssh-add -l &>/dev/null; then
-    _bw_pass=$(bw get password "SSH Key" 2>/dev/null)
-    if [[ -n "$_bw_pass" ]]; then
-      _askpass=$(mktemp)
-      printf '#!/bin/sh\necho "%s"\n' "$_bw_pass" > "$_askpass"
-      chmod +x "$_askpass"
-      SSH_ASKPASS="$_askpass" SSH_ASKPASS_REQUIRE=force ssh-add ~/.ssh/id_ed25519 2>/dev/null
-      rm -f "$_askpass"
-    fi
-    unset _bw_pass _askpass
+# Start the agent but never prompt here — passphrase is handled by:
+#   1. Bitwarden (if BW_SESSION is set, fetches passphrase from vault)
+#   2. First-login script in ~/.zshrc.d/ (runs after this, handles bw unlock)
+#   3. Manual: ssh-add ~/.ssh/id_ed25519
+eval $(keychain --eval --quiet --nogui --noask ~/.ssh/id_ed25519)
+if ! ssh-add -l &>/dev/null && [[ -n "$BW_SESSION" ]] && command -v bw &>/dev/null; then
+  _bw_pass=$(bw get password "SSH Key" 2>/dev/null)
+  if [[ -n "$_bw_pass" ]]; then
+    _askpass=$(mktemp)
+    printf '#!/bin/sh\necho "%s"\n' "$_bw_pass" > "$_askpass"
+    chmod +x "$_askpass"
+    SSH_ASKPASS="$_askpass" SSH_ASKPASS_REQUIRE=force ssh-add ~/.ssh/id_ed25519 2>/dev/null
+    rm -f "$_askpass"
   fi
-else
-  eval $(keychain --eval --quiet --nogui ~/.ssh/id_ed25519)
+  unset _bw_pass _askpass
 fi
 
 # --- mise (tool version manager) ---
