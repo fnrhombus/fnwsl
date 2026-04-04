@@ -292,6 +292,24 @@ GITEOF
     fi
   fi
   unfunction _fnwsl_configure_and_register
+
+  # --- Bitwarden login ---
+  if command -v bw &>/dev/null && ! bw login --check &>/dev/null; then
+    echo ""
+    echo "=== fnwsl: Bitwarden authentication ==="
+    echo "Log in to unlock SSH key passphrase management."
+    echo ""
+    if bw login; then
+      echo ""
+      echo "Unlocking Bitwarden vault..."
+      BW_SESSION=$(bw unlock --raw 2>/dev/null)
+      if [[ -n "$BW_SESSION" ]]; then
+        export BW_SESSION
+        echo "fnwsl: Bitwarden unlocked. SSH passphrase will be managed automatically."
+      fi
+    fi
+  fi
+
   rm -f ~/.zshrc.d/fnwsl-gh-setup.zsh
 fi
 GHEOF
