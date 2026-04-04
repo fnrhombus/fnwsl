@@ -515,7 +515,7 @@ Start-Sleep -Seconds 2
 Write-Host ""
 Write-Host "Running fnwsl setup inside WSL..." -ForegroundColor Yellow
 $p10kArg = if ($P10kWizard) { "1" } else { "" }
-wsl -d $WslName -- bash -c "curl -fsSL 'https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh' | bash -s -- '$Passphrase' '$WslName' '$p10kArg'"
+wsl -d $WslName -- bash -c "curl -fsSL 'https://github.com/fnrhombus/fnwsl/releases/latest/download/bootstrap.sh' | bash -s -- '$Passphrase' '$WslName' '$p10kArg'"
 Assert-ExitCode "WSL-side setup failed."
 
 # --- Hyper-V firewall: allow inbound to WSL ---

@@ -63,7 +63,7 @@ irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup-forced.ps1
 From inside an existing WSL instance:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fnrhombus/fnwsl/main/bootstrap.sh | bash -s -- "yourpassphrase"
+curl -fsSL https://github.com/fnrhombus/fnwsl/releases/latest/download/bootstrap.sh | bash -s -- "yourpassphrase"
 exec zsh
 ```
 
