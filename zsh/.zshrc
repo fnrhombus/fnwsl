@@ -95,6 +95,7 @@ typeset -aU path
 #   1. Bitwarden (if BW_SESSION is set, fetches passphrase from vault)
 #   2. First-login script in ~/.zshrc.d/ (runs after this, handles bw unlock)
 #   3. Manual: ssh-add ~/.ssh/id_ed25519
+[[ -f ~/.keychain ]] && rm -f ~/.keychain  # fix: keychain needs this as a directory
 eval $(keychain --eval --quiet --nogui --noask ~/.ssh/id_ed25519)
 if ! ssh-add -l &>/dev/null && [[ -n "$BW_SESSION" ]] && command -v bw &>/dev/null; then
   _bw_pass=$(bw get password "SSH Key" 2>/dev/null)
