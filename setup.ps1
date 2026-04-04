@@ -22,7 +22,7 @@
 
 param(
     [string]$WslUsername,
-    [string]$Passphrase,
+    $Passphrase = $null,
     [string]$WslName,
     [switch]$P10kWizard,
     [string[]]$WslEnv,
@@ -130,7 +130,7 @@ if (-not $WslUsername) {
     $WslUsername = Read-Host "WSL username (default: $defaultUsername)"
     if (-not $WslUsername) { $WslUsername = $defaultUsername }
 }
-if (-not $PSBoundParameters.ContainsKey('Passphrase')) {
+if ($null -eq $Passphrase) {
     $securePass = Read-Host "Passphrase for WSL password and SSH key (blank for none)" -AsSecureString
     $Passphrase = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass))
 }
