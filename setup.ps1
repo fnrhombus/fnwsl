@@ -130,10 +130,15 @@ if (-not $WslUsername) {
     $WslUsername = Read-Host "WSL username (default: $defaultUsername)"
     if (-not $WslUsername) { $WslUsername = $defaultUsername }
 }
+# HERE BE DRAGONS: $Passphrase is untyped (not [string]) so we can distinguish
+# $null (not provided → prompt) from "" (explicitly blank → no password).
+# [string] would coerce $null to "" and we'd lose that distinction.
+# After this block, we force it to [string] so the rest of the script is safe.
 if ($null -eq $Passphrase) {
     $securePass = Read-Host "Passphrase for WSL password and SSH key (blank for none)" -AsSecureString
     $Passphrase = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass))
 }
+[string]$Passphrase = $Passphrase
 if ($null -eq $SetDefault) {
     $currentDefault = ((wsl -l 2>$null) -join "`n" -replace "`0","" -split "`n" | Where-Object { $_ -match '\(Default\)' }) -replace '\s*\(Default\)','' | ForEach-Object { $_.Trim() }
     if ($currentDefault -and $currentDefault -ne $WslName) {
