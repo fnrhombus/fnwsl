@@ -96,8 +96,14 @@ mise_install yq
 mise_install xh
 mise_install gh
 mise_install zoxide
+mise_install bitwarden
 mise_install claude-code
 ~/.local/bin/mise trust ~/.config/mise/config.toml 2>/dev/null || true
+
+# --- Configure Bitwarden CLI (self-hosted) ---
+echo ""
+echo "Configuring Bitwarden CLI..."
+~/.local/bin/mise exec -- bw config server https://hass4150.duckdns.org:7277
 
 # --- WSL hostname and boot config ---
 if [[ -n "$WSL_NAME" ]]; then
@@ -353,7 +359,7 @@ verify() {
 verify "zsh is default shell" "[[ \$(getent passwd \$USER | cut -d: -f7) == */zsh ]]"
 
 # All tools on PATH (apt and mise alike)
-for cmd in zsh fzf bat fd rg eza lsd tmux stow jq btop keychain direnv tldr sd yq xh gh zoxide claude mise; do
+for cmd in zsh fzf bat fd rg eza lsd tmux stow jq btop keychain direnv tldr sd yq xh gh zoxide bw claude mise; do
   case "$cmd" in
     bat) verify "$cmd on PATH" "command -v bat || command -v batcat" ;;
     fd)  verify "$cmd on PATH" "command -v fd || command -v fdfind" ;;
