@@ -11,9 +11,17 @@ echo "=== fnwsl setup ==="
 ulimit -s unlimited
 
 # --- Fix WSL2 MTU (prevents TLS/SSL failures on large downloads) ---
-if ip link show eth0 &>/dev/null; then
-  sudo ip link set dev eth0 mtu 1350
+WSL_IFACE=$(ip route show default 2>/dev/null | awk '{print $5; exit}')
+if [[ -n "$WSL_IFACE" ]]; then
+  sudo ip link set dev "$WSL_IFACE" mtu 1350
 fi
+# Persist as boot script (interface name may vary across reboots)
+sudo tee /usr/local/bin/fix-mtu.sh > /dev/null <<'MTUSCRIPT'
+#!/bin/sh
+iface=$(ip route show default | head -1 | awk '{print $5}')
+[ -n "$iface" ] && ip link set dev "$iface" mtu 1350
+MTUSCRIPT
+sudo chmod +x /usr/local/bin/fix-mtu.sh
 
 # --- System packages (retry once on hash mismatch) ---
 install_packages() {
@@ -77,12 +85,22 @@ fi
 # --- Install tools via mise ---
 echo ""
 echo "Installing tools via mise..."
-~/.local/bin/mise use -g sd
-~/.local/bin/mise use -g yq
-~/.local/bin/mise use -g xh
-~/.local/bin/mise use -g gh
-~/.local/bin/mise use -g zoxide
-~/.local/bin/mise use -g claude-code
+mise_install() {
+  local tool="$1" attempt
+  for attempt in 1 2 3; do
+    if ~/.local/bin/mise use -g "$tool"; then return 0; fi
+    echo "  Retrying $tool (attempt $((attempt+1))/3)..."
+    sleep 2
+  done
+  echo "ERROR: Failed to install $tool after 3 attempts" >&2
+  return 1
+}
+mise_install sd
+mise_install yq
+mise_install xh
+mise_install gh
+mise_install zoxide
+mise_install claude-code
 ~/.local/bin/mise trust ~/.config/mise/config.toml 2>/dev/null || true
 
 # --- WSL hostname and boot config ---
@@ -106,10 +124,10 @@ if ! grep -q "systemd=" /etc/wsl.conf 2>/dev/null; then
 
 [boot]
 systemd=true
-command=/sbin/ip link set dev eth0 mtu 1350
+command=/usr/local/bin/fix-mtu.sh
 EOF
 elif ! grep -q "command=" /etc/wsl.conf 2>/dev/null; then
-  sudo sed -i '/\[boot\]/a command=/sbin/ip link set dev eth0 mtu 1350' /etc/wsl.conf
+  sudo sed -i '/\[boot\]/a command=/usr/local/bin/fix-mtu.sh' /etc/wsl.conf
 fi
 if ! grep -q "appendWindowsPath" /etc/wsl.conf 2>/dev/null; then
   echo ""
@@ -342,7 +360,7 @@ verify ".p10k.zsh" "[[ -f ~/.p10k.zsh ]]"
 # wsl.conf
 verify "wsl.conf hostname" "grep -q 'hostname=' /etc/wsl.conf"
 verify "wsl.conf systemd" "grep -q 'systemd=true' /etc/wsl.conf"
-verify "wsl.conf MTU boot cmd" "grep -q 'mtu 1350' /etc/wsl.conf"
+verify "wsl.conf MTU boot cmd" "grep -q 'fix-mtu' /etc/wsl.conf"
 verify "wsl.conf appendWindowsPath=false" "grep -q 'appendWindowsPath=false' /etc/wsl.conf"
 
 # udev rules
