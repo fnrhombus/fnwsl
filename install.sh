@@ -72,7 +72,7 @@ fi
 if ! command -v mise &>/dev/null; then
   echo ""
   echo "Installing mise..."
-  curl https://mise.run | sh
+  curl --retry 3 --retry-delay 2 https://mise.run | sh
 fi
 
 # --- Install direnv (per-directory env vars) ---
