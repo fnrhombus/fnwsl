@@ -341,6 +341,18 @@ if ($distroOutput -match "Ubuntu") {
     Write-Host "  User '$WslUsername' created and set as default." -ForegroundColor Green
 }
 
+# --- Warn about Docker Desktop interference ---
+if (Get-Process "Docker Desktop" -ErrorAction SilentlyContinue) {
+    Write-Host ""
+    Write-Host ""
+    Write-Host "  NOTE: Docker Desktop is running." -ForegroundColor Cyan
+    Write-Host "  It may show WSL integration errors while the distro is being" -ForegroundColor Cyan
+    Write-Host "  renamed. These are harmless — Docker will recover on its own" -ForegroundColor Cyan
+    Write-Host "  after setup finishes and WSL restarts." -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host ""
+}
+
 # --- Rename distro: export Ubuntu, import as $WslName ---
 Write-Host ""
 Write-Host "Renaming Ubuntu distro to '$WslName'..." -ForegroundColor Yellow

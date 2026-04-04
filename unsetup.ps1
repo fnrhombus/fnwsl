@@ -277,6 +277,17 @@ foreach ($WslName in $selectedNames) {
         Write-Host "The rest of the teardown is non-interactive." -ForegroundColor Green
     }
 
+    # --- Warn about Docker Desktop interference ---
+    if (Get-Process "Docker Desktop" -ErrorAction SilentlyContinue) {
+        Write-Host ""
+        Write-Host ""
+        Write-Host "  NOTE: Docker Desktop is running." -ForegroundColor Cyan
+        Write-Host "  It may show WSL integration errors while the distro is being" -ForegroundColor Cyan
+        Write-Host "  removed. These are harmless — Docker will recover on its own." -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host ""
+    }
+
     # --- Unregister WSL distro ---
     $distroList = @((wsl -l -q 2>$null) -join "`n" -replace "`0","" -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 
