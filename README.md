@@ -46,7 +46,7 @@ irm https://github.com/fnrhombus/fnwsl/releases/latest/download/setup-forced.ps1
 |----------|---------|-------------|
 | `-WslName` | `{hostname}-wsl` | WSL distro name |
 | `-WslUsername` | Current OS username | Linux username |
-| `-Passphrase` | *(prompted)* | WSL password & SSH key passphrase (blank = none) |
+| `-Passphrase` | *(prompted)* | WSL password & SSH key passphrase |
 | `-SetDefault` | `$true` | Set as default WSL distro |
 | `-WslEnv` | *(prompted)* | Windows env vars to forward (e.g. `GH_TOKEN,GOPATH`) |
 | `-P10kWizard` | off | Run Powerlevel10k config wizard instead of using defaults |

@@ -161,7 +161,7 @@ if ($null -eq $Passphrase) {
     if ($Force) {
         $Passphrase = ""
     } else {
-        $securePass = Read-Host "Passphrase for WSL password and SSH key (blank for none)" -AsSecureString
+        $securePass = Read-Host "Passphrase for WSL password and SSH key" -AsSecureString
         $Passphrase = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass))
     }
 }
