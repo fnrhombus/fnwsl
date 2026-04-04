@@ -258,42 +258,10 @@ else
   echo ""
   echo "No GitHub token found — deferring GitHub setup to first login."
   mkdir -p ~/.zshrc.d
-  cat > ~/.zshrc.d/fnwsl-gh-setup.zsh <<'GHEOF'
-# fnwsl: one-time GitHub auth, git identity, and SSH key registration (self-deleting)
-if [[ -t 0 ]] && command -v gh &>/dev/null; then
-  _fnwsl_configure_and_register() {
-    local gh_user gh_id gh_email
-    gh_user=$(gh api user --jq '.login' 2>/dev/null) || return 1
-    gh_id=$(gh api user --jq '.id' 2>/dev/null) || return 1
-    gh_email="${gh_id}+${gh_user}@users.noreply.github.com"
-    cat > ~/.gitconfig.local <<GITEOF
-[user]
-    name = ${gh_user}
-    email = ${gh_email}
-GITEOF
-    if [[ -f ~/.ssh/id_ed25519.pub ]]; then
-      echo "${gh_email} $(cat ~/.ssh/id_ed25519.pub)" > ~/.ssh/allowed_signers
-    fi
-    gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) - WSL" --type authentication 2>/dev/null || true
-    gh ssh-key add ~/.ssh/id_ed25519.pub --type signing 2>/dev/null || true
-    echo "fnwsl: Git identity set to ${gh_user} <${gh_email}>"
-    echo "fnwsl: SSH key registered with GitHub."
-  }
-
-  if gh auth status &>/dev/null; then
-    _fnwsl_configure_and_register
-  else
-    echo ""
-    echo "=== fnwsl: GitHub authentication ==="
-    echo "Authenticate with GitHub to register your SSH key and configure git identity."
-    echo ""
-    if gh auth login; then
-      _fnwsl_configure_and_register
-    fi
-  fi
-  unfunction _fnwsl_configure_and_register
-
-  # --- Bitwarden login ---
+  cat > ~/.zshrc.d/fnwsl-first-login.zsh <<'GHEOF'
+# fnwsl: one-time first-login setup (self-deleting)
+if [[ -t 0 ]]; then
+  # --- Bitwarden login (before gh so SSH key is available) ---
   if command -v bw &>/dev/null && ! bw login --check &>/dev/null; then
     echo ""
     echo "=== fnwsl: Bitwarden authentication ==="
@@ -310,7 +278,42 @@ GITEOF
     fi
   fi
 
-  rm -f ~/.zshrc.d/fnwsl-gh-setup.zsh
+  # --- GitHub auth + git identity ---
+  if command -v gh &>/dev/null; then
+    _fnwsl_configure_and_register() {
+      local gh_user gh_id gh_email
+      gh_user=$(gh api user --jq '.login' 2>/dev/null) || return 1
+      gh_id=$(gh api user --jq '.id' 2>/dev/null) || return 1
+      gh_email="${gh_id}+${gh_user}@users.noreply.github.com"
+      cat > ~/.gitconfig.local <<GITEOF
+[user]
+    name = ${gh_user}
+    email = ${gh_email}
+GITEOF
+      if [[ -f ~/.ssh/id_ed25519.pub ]]; then
+        echo "${gh_email} $(cat ~/.ssh/id_ed25519.pub)" > ~/.ssh/allowed_signers
+      fi
+      gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) - WSL" --type authentication 2>/dev/null || true
+      gh ssh-key add ~/.ssh/id_ed25519.pub --type signing 2>/dev/null || true
+      echo "fnwsl: Git identity set to ${gh_user} <${gh_email}>"
+      echo "fnwsl: SSH key registered with GitHub."
+    }
+
+    if gh auth status &>/dev/null; then
+      _fnwsl_configure_and_register
+    else
+      echo ""
+      echo "=== fnwsl: GitHub authentication ==="
+      echo "Authenticate with GitHub to register your SSH key and configure git identity."
+      echo ""
+      if gh auth login; then
+        _fnwsl_configure_and_register
+      fi
+    fi
+    unfunction _fnwsl_configure_and_register
+  fi
+
+  rm -f ~/.zshrc.d/fnwsl-first-login.zsh
 fi
 GHEOF
 fi
