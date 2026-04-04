@@ -359,6 +359,9 @@ verify "wsl.conf systemd" "grep -q 'systemd=true' /etc/wsl.conf"
 verify "wsl.conf MTU boot cmd" "grep -q 'fix-mtu' /etc/wsl.conf"
 verify "wsl.conf appendWindowsPath=false" "grep -q 'appendWindowsPath=false' /etc/wsl.conf"
 
+# Networking
+verify "IPv6 connectivity" "ip -6 addr show scope global 2>/dev/null | grep -q inet6"
+
 # udev rules
 verify "udev USB serial rules" "[[ -f /etc/udev/rules.d/99-usb-serial.rules ]]"
 
@@ -379,14 +382,8 @@ echo "  2. If not logged into gh: run 'gh auth login'"
 echo "  3. Verify git signing: git log --show-signature"
 echo "  4. To reconfigure p10k prompt: p10k configure"
 echo ""
-echo "Windows-side setup (run in elevated PowerShell):"
-echo "  5. Enable mirrored networking: create %UserProfile%\\.wslconfig with:"
-echo "       [wsl2]"
-echo "       networkingMode=mirrored"
-echo "       dnsTunneling=true"
-echo "       firewall=true"
-echo "  6. Allow inbound to WSL (for SSH, HTTP servers):"
-echo "       Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -DefaultInboundAction Allow"
+echo "To allow inbound connections to WSL (SSH, HTTP servers, etc.):"
+echo "  Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -DefaultInboundAction Allow"
 echo "  7. Install usbipd for ESP32/Pico USB passthrough:"
 echo "       winget install dorssel.usbipd-win"
 echo "  8. Attach USB device: usbipd bind --busid X-X && usbipd attach --wsl --busid X-X --auto-attach"
