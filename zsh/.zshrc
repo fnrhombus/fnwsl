@@ -70,6 +70,9 @@ else
   compinit -C  # use cache if less than 24h old
 fi
 
+autoload -Uz bashcompinit && bashcompinit
+[[ -f ~/.local/share/bash-completion/completions/claude ]] && source ~/.local/share/bash-completion/completions/claude
+
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path ~/.zsh/cache
 zstyle ':completion:*' menu select

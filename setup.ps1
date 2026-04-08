@@ -590,6 +590,24 @@ if (Test-Path $wtSettingsPath) {
     Write-Host "Windows Terminal settings not found - configure manually." -ForegroundColor DarkYellow
 }
 
+# --- Claude Code CLI completions (PowerShell) ---
+$psProfile = $PROFILE.CurrentUserAllHosts
+if (-not $psProfile) { $psProfile = $PROFILE }
+$completionUrl = "https://github.com/douglaswth/claude-code-completion/releases/latest/download/claude.ps1"
+$completionDir = Join-Path (Split-Path $psProfile) "completions"
+$completionPath = Join-Path $completionDir "claude.ps1"
+Write-Host ""
+Write-Host "Installing Claude Code PowerShell completions..." -ForegroundColor Yellow
+New-Item -ItemType Directory -Path $completionDir -Force | Out-Null
+Invoke-WebRequest -Uri $completionUrl -OutFile $completionPath -UseBasicParsing
+$sourceLine = ". `"$completionPath`""
+if (-not (Test-Path $psProfile) -or -not (Select-String -Path $psProfile -Pattern ([regex]::Escape($sourceLine)) -Quiet)) {
+    Add-Content -Path $psProfile -Value "`n# Claude Code CLI completions`n$sourceLine"
+    Write-Host "  Added to PowerShell profile." -ForegroundColor Green
+} else {
+    Write-Host "  Already in PowerShell profile." -ForegroundColor DarkGray
+}
+
 # --- Verify Windows-side setup ---
 Write-Host ""
 Write-Host "Verifying setup..." -ForegroundColor Yellow

@@ -104,6 +104,13 @@ mise_install bitwarden
 mise_install claude-code
 ~/.local/bin/mise trust ~/.config/mise/config.toml 2>/dev/null || true
 
+# --- Claude Code CLI completions (bash, loaded via bashcompinit in zsh) ---
+echo ""
+echo "Installing Claude Code CLI completions..."
+mkdir -p ~/.local/share/bash-completion/completions
+curl --retry 3 -fsSL -o ~/.local/share/bash-completion/completions/claude \
+  "https://github.com/douglaswth/claude-code-completion/releases/latest/download/claude.bash"
+
 # --- Configure Bitwarden CLI (self-hosted) ---
 echo ""
 echo "Configuring Bitwarden CLI..."
