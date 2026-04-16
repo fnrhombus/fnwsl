@@ -454,41 +454,63 @@ foreach ($WslName in $selectedNames) {
         }
     }
 
-    # --- Remove WSL profiles from Windows Terminal ---
+    # --- Remove Windows Terminal fragment (per instance) ---
+    $wtFragmentDir = "$env:LOCALAPPDATA\Microsoft\Windows Terminal\Fragments\fnwsl"
+    $wtFragmentPath = Join-Path $wtFragmentDir "$WslName.json"
+    if (Test-Path $wtFragmentPath) {
+        Remove-Item -Force $wtFragmentPath
+        Write-Host ""
+        Write-Host "Removed Windows Terminal fragment: $wtFragmentPath" -ForegroundColor Green
+    }
+
+    # --- Clean legacy profile entries and restore disabledProfileSources ---
     $wtSettingsPath = "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
     if (Test-Path $wtSettingsPath) {
         $settings = Get-Content $wtSettingsPath -Raw | ConvertFrom-Json
+        $needsSave = $false
+
+        # Legacy cleanup: older fnwsl versions added our profile directly into profiles.list.
         $before = $settings.profiles.list.Count
-        $distroList = @((wsl -l -q 2>$null) -join "`n" -replace "`0","" -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-        $settings.profiles.list = @($settings.profiles.list | Where-Object {
-            if ($_.name -eq $WslName) { return $false }
-            # Remove orphaned WSL profiles (distro no longer exists)
-            if ($_.source -match "Microsoft\.WSL|Windows\.Terminal\.Wsl" -and $_.name -notin $distroList) { return $false }
-            return $true
-        })
-        # Unhide auto-detected WSL profiles we hid during setup (only on last instance)
-        $unhidden = 0
+        $settings.profiles.list = @($settings.profiles.list | Where-Object { $_.name -ne $WslName })
+        $removedLegacy = $before - $settings.profiles.list.Count
+        if ($removedLegacy -gt 0) { $needsSave = $true }
+
+        # On last instance: remove our disabledProfileSources addition if setup added it.
+        $removedSource = 0
         if ($isLastInstance) {
-            foreach ($profile in $settings.profiles.list) {
-                if ($profile.source -match "Microsoft\.WSL|Windows\.Terminal\.Wsl" -and $profile.hidden) {
-                    $profile.hidden = $false
-                    $unhidden++
+            $wtAddedBySetup = $tracker -and ($tracker.PSObject.Properties.Name -contains 'wtDisabledWslAdded') -and $tracker.wtDisabledWslAdded
+            if ($wtAddedBySetup -and ($settings.PSObject.Properties.Name -contains 'disabledProfileSources')) {
+                $filtered = @($settings.disabledProfileSources | Where-Object { $_ -ne "Windows.Terminal.Wsl" })
+                $removedSource = @($settings.disabledProfileSources).Count - $filtered.Count
+                if ($removedSource -gt 0) {
+                    if ($filtered.Count -eq 0) {
+                        $settings.PSObject.Properties.Remove('disabledProfileSources')
+                    } else {
+                        $settings.disabledProfileSources = $filtered
+                    }
+                    $needsSave = $true
                 }
             }
         }
-        $removed = $before - $settings.profiles.list.Count
-        if ($removed -gt 0 -or $unhidden -gt 0) {
+
+        if ($needsSave) {
             Write-Host ""
-            Write-Host "Updating Windows Terminal profiles (removed $removed, unhidden $unhidden)..." -ForegroundColor Yellow
+            Write-Host "Updating Windows Terminal settings (legacy profiles removed: $removedLegacy, disabledProfileSources entries removed: $removedSource)..." -ForegroundColor Yellow
             $settings | ConvertTo-Json -Depth 10 | Set-Content $wtSettingsPath -Encoding UTF8
             Write-Host "  Done." -ForegroundColor Green
         } else {
             Write-Host ""
-            Write-Host "No WSL profiles found in Windows Terminal, skipping." -ForegroundColor DarkGray
+            Write-Host "No Windows Terminal settings changes needed." -ForegroundColor DarkGray
         }
-    } else {
-        Write-Host ""
-        Write-Host "Windows Terminal settings not found, skipping." -ForegroundColor DarkGray
+    }
+
+    # Remove the fragment directory on last instance if empty
+    if ($isLastInstance -and (Test-Path $wtFragmentDir)) {
+        $remaining = @(Get-ChildItem $wtFragmentDir -ErrorAction SilentlyContinue)
+        if ($remaining.Count -eq 0) {
+            Remove-Item -Force $wtFragmentDir
+            Write-Host "Removed empty fragment directory $wtFragmentDir" -ForegroundColor DarkGray
+        }
     }
 }
 

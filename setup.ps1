@@ -538,12 +538,69 @@ if (-not $usbipd) {
     Write-Host "usbipd-win already installed." -ForegroundColor DarkGray
 }
 
-# --- Configure Windows Terminal (Nerd Font + rename WSL profile) ---
+# --- Configure Windows Terminal (font + suppress dynamic WSL profiles + install fragment) ---
+# Uses two Microsoft-documented mechanisms:
+#   1. disabledProfileSources: prevents the "Windows.Terminal.Wsl" generator from auto-creating WSL profiles.
+#      https://learn.microsoft.com/en-us/windows/terminal/dynamic-profiles#prevent-a-profile-from-being-generated
+#   2. JSON fragment extensions: we ship our own profile as a fragment instead of mutating profiles.list.
+#      https://learn.microsoft.com/en-us/windows/terminal/json-fragment-extensions
+# Profile GUIDs are deterministic UUIDv5 values derived from the documented fragment namespace so that
+# reinstalls, renames and uninstalls reference the same profile identity.
 $wtSettingsPath = "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
+$wtFragmentDir = "$env:LOCALAPPDATA\Microsoft\Windows Terminal\Fragments\fnwsl"
+$wtFragmentPath = Join-Path $wtFragmentDir "$WslName.json"
+
+function New-FragmentGuid {
+    # RFC 4122 UUIDv5 with UTF-16LE name bytes, per Windows Terminal's documented convention.
+    param([Parameter(Mandatory)][guid]$Namespace, [Parameter(Mandatory)][string]$Name)
+    $nameBytes = [System.Text.Encoding]::Unicode.GetBytes($Name)
+    $nsBytes = $Namespace.ToByteArray()
+    $nsBE = [byte[]]::new(16)
+    $nsBE[0] = $nsBytes[3]; $nsBE[1] = $nsBytes[2]; $nsBE[2] = $nsBytes[1]; $nsBE[3] = $nsBytes[0]
+    $nsBE[4] = $nsBytes[5]; $nsBE[5] = $nsBytes[4]
+    $nsBE[6] = $nsBytes[7]; $nsBE[7] = $nsBytes[6]
+    [Array]::Copy($nsBytes, 8, $nsBE, 8, 8)
+    $buf = [byte[]]::new($nsBE.Length + $nameBytes.Length)
+    [Array]::Copy($nsBE, 0, $buf, 0, 16)
+    [Array]::Copy($nameBytes, 0, $buf, 16, $nameBytes.Length)
+    $sha1 = [System.Security.Cryptography.SHA1]::Create()
+    try { $hash = $sha1.ComputeHash($buf) } finally { $sha1.Dispose() }
+    $b = [byte[]]::new(16); [Array]::Copy($hash, 0, $b, 0, 16)
+    $b[6] = ($b[6] -band 0x0F) -bor 0x50
+    $b[8] = ($b[8] -band 0x3F) -bor 0x80
+    $out = [byte[]]::new(16)
+    $out[0] = $b[3]; $out[1] = $b[2]; $out[2] = $b[1]; $out[3] = $b[0]
+    $out[4] = $b[5]; $out[5] = $b[4]
+    $out[6] = $b[7]; $out[7] = $b[6]
+    [Array]::Copy($b, 8, $out, 8, 8)
+    return [guid]::new($out)
+}
+
+# Write the fragment (no dependency on settings.json existing)
+$wtFragmentNamespace = [guid]'{f65ddb7e-706b-4499-8a50-40313caf510a}'  # documented WT fragment namespace
+$appNs = New-FragmentGuid -Namespace $wtFragmentNamespace -Name 'fnwsl'
+$profileGuid = New-FragmentGuid -Namespace $appNs -Name $WslName
+if (-not (Test-Path $wtFragmentDir)) {
+    New-Item -ItemType Directory -Path $wtFragmentDir -Force | Out-Null
+}
+$fragment = [ordered]@{
+    profiles = @(
+        [ordered]@{
+            guid        = "{$profileGuid}"
+            name        = $WslName
+            commandline = "wsl.exe -d $WslName"
+            hidden      = $false
+        }
+    )
+}
+$fragment | ConvertTo-Json -Depth 10 | Out-File -FilePath $wtFragmentPath -Encoding Utf8
+Write-Host ""
+Write-Host "Installed Windows Terminal fragment at $wtFragmentPath" -ForegroundColor Yellow
+
+# Update settings.json (font defaults + disabledProfileSources)
 if (Test-Path $wtSettingsPath) {
     $settings = Get-Content $wtSettingsPath -Raw | ConvertFrom-Json
     $needsSave = $false
-    $wslHostname = $WslName
 
     # Set font on defaults if not already set
     if (-not $settings.profiles.defaults.font) {
@@ -554,40 +611,29 @@ if (Test-Path $wtSettingsPath) {
         $needsSave = $true
     }
 
-    # Hide auto-detected WSL/Ubuntu profiles (we create our own explicit one)
-    foreach ($profile in $settings.profiles.list) {
-        if ($profile.source -match "Microsoft\.WSL|Windows\.Terminal\.Wsl" -or $profile.name -match "Ubuntu") {
-            if (-not $profile.hidden) {
-                $profile.hidden = $true
-                $needsSave = $true
-            }
-        }
+    # Suppress dynamic WSL profile generation. Track on first install whether we added it
+    # so unsetup only removes our own addition.
+    $wslSource = "Windows.Terminal.Wsl"
+    $existingSources = if ($settings.PSObject.Properties.Name -contains 'disabledProfileSources') {
+        @($settings.disabledProfileSources)
+    } else { @() }
+    if (-not ($tracker.PSObject.Properties.Name -contains 'wtDisabledWslAdded')) {
+        $tracker | Add-Member -NotePropertyName 'wtDisabledWslAdded' -NotePropertyValue ($wslSource -notin $existingSources) -Force
+        $tracker | ConvertTo-Json -Depth 10 | Set-Content $fnwslTracker -Encoding UTF8
     }
-
-    # Ensure our explicit profile exists
-    $ourProfile = $settings.profiles.list | Where-Object { $_.name -eq $wslHostname -and -not $_.source } | Select-Object -First 1
-    if (-not $ourProfile) {
-        $newProfile = [PSCustomObject]@{
-            guid        = "{$([guid]::NewGuid().ToString())}"
-            name        = $wslHostname
-            commandline = "wsl.exe -d $wslHostname"
-            hidden      = $false
-        }
-        $settings.profiles.list = @($settings.profiles.list) + @($newProfile)
+    if ($wslSource -notin $existingSources) {
+        $settings | Add-Member -NotePropertyName 'disabledProfileSources' -NotePropertyValue (@($existingSources) + $wslSource) -Force
         $needsSave = $true
     }
 
     if ($needsSave) {
-        Write-Host ""
-        Write-Host "Configuring Windows Terminal (font + WSL profile '$wslHostname')..." -ForegroundColor Yellow
+        Write-Host "Configuring Windows Terminal settings (font + disabledProfileSources)..." -ForegroundColor Yellow
         $settings | ConvertTo-Json -Depth 10 | Set-Content $wtSettingsPath -Encoding UTF8
     } else {
-        Write-Host ""
-        Write-Host "Windows Terminal already configured." -ForegroundColor DarkGray
+        Write-Host "Windows Terminal settings already configured." -ForegroundColor DarkGray
     }
 } else {
-    Write-Host ""
-    Write-Host "Windows Terminal settings not found - configure manually." -ForegroundColor DarkYellow
+    Write-Host "Windows Terminal settings.json not found - fragment is installed, but font/disabledProfileSources must be set manually." -ForegroundColor DarkYellow
 }
 
 # --- Claude Code CLI completions (PowerShell) ---
@@ -657,6 +703,17 @@ Verify "Terminal font configured" {
     if (Test-Path $wtSettingsPath) {
         $s = Get-Content $wtSettingsPath -Raw | ConvertFrom-Json
         [bool]$s.profiles.defaults.font.face
+    } else { $false }
+}
+
+# Windows Terminal fragment for this WSL instance
+Verify "Terminal fragment installed for '$WslName'" { Test-Path $wtFragmentPath }
+
+# Dynamic WSL profiles suppressed
+Verify "Windows.Terminal.Wsl in disabledProfileSources" {
+    if (Test-Path $wtSettingsPath) {
+        $s = Get-Content $wtSettingsPath -Raw | ConvertFrom-Json
+        ($s.PSObject.Properties.Name -contains 'disabledProfileSources') -and ("Windows.Terminal.Wsl" -in @($s.disabledProfileSources))
     } else { $false }
 }
 
