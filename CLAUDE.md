@@ -16,3 +16,7 @@
 
 ## URLs
 - NEVER use `raw.githubusercontent.com`. Always use GitHub release asset URLs (`https://github.com/.../releases/latest/download/...`). The raw CDN caches aggressively and serves stale files.
+
+## Migration Warning (2026-04-12)
+
+This repo was re-cloned during a c:\dev → V:\ migration. Some untracked/local files may be missing. Don't be surprised if something is broken. Remove this note once the project is confirmed working.
